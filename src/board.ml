@@ -27,7 +27,7 @@ let starting_board =
 let get_point board n =
   n
   |> (fun n -> Location.Point n)
-  |> (fun x -> Location.Map.find board x)
+  |> Location.Map.find board
   |> Option.value_exn
 ;;
 
