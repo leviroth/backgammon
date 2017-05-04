@@ -1,16 +1,15 @@
 open Core.Std
 open Color
 
-type board = (color * int) option Location.Map.t;;
-type t = board;;
+type t = (color * int) option Location.Map.t;;
 
-let empty_board : board =
+let empty_board : t =
   Location.valid
   |> List.map ~f:(fun x -> (x, None))
   |> Location.Map.of_alist_exn
 ;;
 
-let starting_board =
+let starting_board : t =
   let flip_color = function | White -> Black | Black -> White in
   let flip_side (point, (color, count)) = (25 - point,
                                            (flip_color color, count)) in
