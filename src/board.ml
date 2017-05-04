@@ -9,19 +9,14 @@ let empty_board : t =
   |> Location.Map.of_alist_exn
 ;;
 
-let starting_board : t =
-  let flip_color = function | White -> Black | Black -> White in
-  let flip_side (point, (color, count)) = (25 - point,
-                                           (flip_color color, count)) in
-  let expand_pair (point, stack) = (Location.Point point, Some stack) in
-  let white_side = [(1, (White, 2));
-                    (6, (Black, 5));
-                    (8, (Black, 2));
-                    (12, (White, 5));] in
-  let black_side = List.map ~f:flip_side white_side in
-  let items = List.map ~f:expand_pair (white_side @ black_side) in
-  List.fold ~init:empty_board ~f:(fun m (k, v) -> Location.Map.add m ~key:k ~data:v) items
-;;
+let get : t -> Location.t -> (color * int) option =
+  Location.Map.find_exn
+
+let put board ~location ~contents =
+  Location.Map.add board ~key:location ~data:contents
+
+let update board ~location ~f =
+  Location.Map.change board location ~f
 
 let get_point board n =
   n
@@ -29,9 +24,6 @@ let get_point board n =
   |> Location.Map.find board
   |> Option.value_exn
 ;;
-
-let get_contents =
-  Location.Map.find_exn
 
 let remove_from board ?(n=1) location =
   let update_fn = function
