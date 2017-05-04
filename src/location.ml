@@ -26,7 +26,7 @@ include Comparable.Make(T);;
 
 let valid : t list =
   [Bar White; Bar Black]
-  @ (List.map ~f:(fun x -> point x) (List.range ~stop:`inclusive 0 24))
+  @ (List.map ~f:(fun x -> point x) (List.range ~stop:`inclusive 1 24))
   @ [Home White; Home Black]
 
 let find_dest source steps c =
@@ -36,5 +36,5 @@ let find_dest source steps c =
   | Bar Black -> Some (point (-steps))
   | Point (start) -> let dest = step_fn (start :> int) steps in
     let open Int in
-    if dest >= 1 && dest <= 24 then Some (point dest) else None
+    if dest >= 1 && dest <= 24 then Some (point dest) else Some (Home c)
   | Home _ -> None
