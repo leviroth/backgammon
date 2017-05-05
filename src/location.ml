@@ -1,6 +1,5 @@
+open Color
 open Core.Std
-
-type color = White | Black [@@deriving sexp, compare];;
 
 module T : sig
   type t =
