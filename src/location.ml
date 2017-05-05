@@ -21,7 +21,6 @@ end = struct
 end
 
 include T;;
-include Comparable.Make(T);;
 
 let valid : t list =
   [Bar White; Bar Black]
