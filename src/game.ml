@@ -11,11 +11,11 @@ let starting_board : Board.t =
   let flip_side (point, (color, count)) = (25 - point,
                                            (flip_color color, count)) in
   let expand_pair (point, stack) = (Location.point point, Some stack) in
-  let white_side = [(1, (White, 2));
-                    (6, (Black, 5));
-                    (8, (Black, 2));
-                    (12, (White, 5));] in
-  let black_side = List.map ~f:flip_side white_side in
+  let black_side = [(24, (White, 2));
+                    (19, (Black, 5));
+                    (17, (Black, 2));
+                    (13, (White, 5));] in
+  let white_side = List.map ~f:flip_side black_side in
   let items = List.map ~f:expand_pair (white_side @ black_side) in
   List.fold ~init:Board.empty ~f:(fun m (k, v) -> Board.put m ~location:k ~contents:v) items
 ;;
