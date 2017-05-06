@@ -1,10 +1,6 @@
 open Color
 open Core.Std
 
-let move_legal board source dest =
-  match Board.get board source with
-  | Some (color, _) -> true
-  | None -> false
 let flip_color = function | White -> Black | Black -> White
 
 let starting_board : Board.t =
@@ -40,3 +36,28 @@ let move board source dest =
                            |> (fun x -> remove_from x source)
                            |> (fun x -> add_to x dest color)))
 ;;
+
+let has_piece_at board location color =
+  match Board.get board location with
+  | Some (c, count) -> c = color && count > 0
+  | None -> false
+
+let dest_open board dest color =
+  match Board.get board dest with
+  | Some (c, count) -> c = color || count <= 1
+  | None -> true
+
+let move_legal board source dest color =
+  match source with
+  | Location.Bar(_) | Location.Point(_) -> has_piece_at board source color
+                                           && dest_open board dest color
+  | Location.Home(_) -> false
+;;
+
+let single_move_unsafe board source dest =
+  let (color, _) = Option.value_exn (Board.get board source) in
+  let other = flip_color color in
+  let hitting = has_piece_at board dest other in
+  let piece_removed = remove_from board source in
+  let piece_added = add_to piece_removed dest color in
+  if hitting then add_to piece_added (Location.Bar(other)) other else piece_added
