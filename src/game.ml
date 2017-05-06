@@ -5,9 +5,9 @@ let move_legal board source dest =
   match Board.get board source with
   | Some (color, _) -> true
   | None -> false
+let flip_color = function | White -> Black | Black -> White
 
 let starting_board : Board.t =
-  let flip_color = function | White -> Black | Black -> White in
   let flip_side (point, (color, count)) = (25 - point,
                                            (flip_color color, count)) in
   let expand_pair (point, stack) = (Location.point point, Some stack) in
