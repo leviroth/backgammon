@@ -53,9 +53,26 @@ let home_table color =
   | Black -> List.range ~stop:`inclusive 19 24
 
 let move_legal_local board source dest color =
+  let can_bear_off board color =
+    let distant_points = List.map ~f:Location.point
+        (match color with
+         | White -> List.range ~stop:`inclusive 7 24
+         | Black -> List.range ~stop:`inclusive 1 18)
+    in
+    List.for_all ((Location.Bar color) :: distant_points)
+      ~f:(fun x -> match Board.get board x with
+          | Some (c, _) -> c = flip_color color
+          | None -> true)
+  in
+  let source_ready = has_piece_at board source color in
+  let dest_ready = dest_open board dest color in
+  let bar = Location.Bar color in
   match source with
-  | Location.Bar(_) | Location.Point(_) -> has_piece_at board source color
-                                           && dest_open board dest color
+  | Location.Bar(_) -> source_ready && dest_ready
+  | Location.Point(_) -> source_ready
+                         && dest_ready
+                         && Board.get board bar = None
+                         && (dest <> Location.Home(color) || can_bear_off board color)
   | Location.Home(_) -> false
 ;;
 

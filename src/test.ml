@@ -7,7 +7,9 @@ let test_game _ =
   assert_equal false (Game.move_legal_local Game.starting_board (Location.point 24) (Location.point 19) White);
   assert_equal true (Game.move_legal_local moved_board (Location.point 24) (Location.point 23) White);
   assert_equal false (Game.move_legal_local Game.starting_board (Location.point 23) (Location.point 19) White);
-  assert_equal (Board.get moved_board (Location.point 23)) (Some (White, 1));;
+  assert_equal (Board.get moved_board (Location.point 23)) (Some (White, 1));
+  assert_equal false (Game.move_legal_local Game.starting_board (Location.point 6) (Location.Home White) White)
+;;
 
 let suite =
   "suite">:::
