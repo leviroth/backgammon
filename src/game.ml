@@ -1,5 +1,5 @@
 open Color
-open Core.Std
+open Core
 
 let flip_color = function | White -> Black | Black -> White
 

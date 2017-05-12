@@ -1,5 +1,5 @@
 open Color
-open Core.Std
+open Core
 
 module T : sig
   type t =

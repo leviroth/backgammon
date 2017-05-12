@@ -1,4 +1,4 @@
-open Core.Std
+open Core
 open Color
 
 module Comparable_location = struct
