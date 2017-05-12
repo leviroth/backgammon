@@ -47,6 +47,11 @@ let dest_open board dest color =
   | Some (c, count) -> c = color || count <= 1
   | None -> true
 
+let home_table color =
+  match color with
+  | White -> List.range ~stop:`inclusive 1 6
+  | Black -> List.range ~stop:`inclusive 19 24
+
 let move_legal_local board source dest color =
   match source with
   | Location.Bar(_) | Location.Point(_) -> has_piece_at board source color
