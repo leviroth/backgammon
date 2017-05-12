@@ -47,7 +47,7 @@ let dest_open board dest color =
   | Some (c, count) -> c = color || count <= 1
   | None -> true
 
-let move_legal board source dest color =
+let move_legal_local board source dest color =
   match source with
   | Location.Bar(_) | Location.Point(_) -> has_piece_at board source color
                                            && dest_open board dest color
