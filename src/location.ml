@@ -22,9 +22,12 @@ end
 
 include T;;
 
+let valid_points =
+  (List.map ~f:(point) (List.range ~stop:`inclusive 1 24))
+
 let valid : t list =
   [Bar White; Bar Black]
-  @ (List.map ~f:(fun x -> point x) (List.range ~stop:`inclusive 1 24))
+  @ valid_points
   @ [Home White; Home Black]
 
 let find_dest source steps c =
