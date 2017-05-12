@@ -28,7 +28,7 @@ let valid : t list =
   @ [Home White; Home Black]
 
 let find_dest source steps c =
-  let step_fn = match c with | White -> (+) | Black -> (-) in
+  let step_fn = match c with | White -> (-) | Black -> (+) in
   match source with
   | Bar White -> Some (point steps)
   | Bar Black -> Some (point (-steps))
