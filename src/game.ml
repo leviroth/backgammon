@@ -76,6 +76,13 @@ let move_legal_local board source dest color =
   | Location.Home(_) -> false
 ;;
 
+let legal_uses board color die =
+  let sources = ((Location.Bar color) :: Location.valid_points) in
+  List.filter sources ~f:(fun source ->
+      let dest = Location.find_dest source die color in
+      move_legal_local board source (Option.value_exn dest) color)
+;;
+
 let single_move_unsafe board source dest =
   let (color, _) = Option.value_exn (Board.get board source) in
   let other = flip_color color in
