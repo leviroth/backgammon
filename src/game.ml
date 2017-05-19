@@ -52,7 +52,16 @@ let home_table color =
   | White -> List.range ~stop:`inclusive 1 6
   | Black -> List.range ~stop:`inclusive 19 24
 
-let move_legal_local board source dest color =
+let no_higher_points_filled board color point =
+  let higher_points = match color with
+    | White -> List.range (point + 1) 6 ~stop:`inclusive
+    | Black -> List.range ~stride:(-1) (25 - point - 1) 19 ~stop:`inclusive in
+  higher_points
+  |> List.map ~f:Location.point
+  |> List.for_all ~f:(fun x -> match Board.get board x with | None -> true | Some (c, _) -> c = flip_color color)
+
+let move_legal_local board source die color =
+  let dest = Location.find_dest source die color |> Option.value_exn in
   let can_bear_off board color =
     let distant_points = List.map ~f:Location.point
         (match color with
@@ -69,18 +78,12 @@ let move_legal_local board source dest color =
   let bar = Location.Bar color in
   match source with
   | Location.Bar(_) -> source_ready && dest_ready
-  | Location.Point(_) -> source_ready
-                         && dest_ready
-                         && Board.get board bar = None
-                         && (dest <> Location.Home(color) || can_bear_off board color)
+  | Location.Point(point) -> source_ready
+                             && dest_ready
+                             && Board.get board bar = None
+                             && (dest <> Location.Home(color) || can_bear_off board color
+                                                                 && no_higher_points_filled board color (point :> int))
   | Location.Home(_) -> false
-;;
-
-let legal_uses board color die =
-  let sources = ((Location.Bar color) :: Location.valid_points) in
-  List.filter sources ~f:(fun source ->
-      let dest = Location.find_dest source die color in
-      move_legal_local board source (Option.value_exn dest) color)
 ;;
 
 let single_move_unsafe board source dest =
@@ -90,3 +93,9 @@ let single_move_unsafe board source dest =
   let piece_removed = remove_from board source in
   let piece_added = add_to piece_removed dest color in
   if hitting then add_to piece_added (Location.Bar(other)) other else piece_added
+
+let legal_uses board color die =
+  let sources = ((Location.Bar color) :: Location.valid_points) in
+  List.filter sources ~f:(fun source ->
+      move_legal_local board source die color)
+;;
