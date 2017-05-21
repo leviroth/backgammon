@@ -60,7 +60,7 @@ let no_higher_points_filled board color point =
   |> List.map ~f:Location.point
   |> List.for_all ~f:(fun x -> match Board.get board x with | None -> true | Some (c, _) -> c = flip_color color)
 
-let move_legal_local board source die color =
+let move_legal_individual board source die color =
   let dest = Location.find_dest source die color |> Option.value_exn in
   let can_bear_off board color =
     let distant_points = List.map ~f:Location.point
@@ -97,5 +97,5 @@ let single_move_unsafe board source dest =
 let legal_uses board color die =
   let sources = ((Location.Bar color) :: Location.valid_points) in
   List.filter sources ~f:(fun source ->
-      move_legal_local board source die color)
+      move_legal_individual board source die color)
 ;;
