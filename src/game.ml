@@ -99,3 +99,46 @@ let legal_uses board color die =
   List.filter sources ~f:(fun source ->
       move_legal_individual board source die color)
 ;;
+
+type move_tree = Tree of Location.t * move_tree list
+
+(** Construct a tree of possible moves, given a list of dice. Must be pruned for
+    under-use of available dice. *)
+let rec legal_use_tree board color dice : move_tree list =
+  let next_board loc die = single_move_unsafe board loc (Option.value_exn (Location.find_dest loc die color)) in
+  match dice with
+  | [] -> []
+  | hd::tl -> legal_uses board color hd
+              |> List.map ~f:(fun move -> Tree (move, legal_use_tree (next_board move hd) color tl))
+
+(** Find the maximum height of a list of trees; in other words, the maximum
+   number of moves possible. *)
+let rec tree_height = function
+  | [] -> 0
+  | Tree(_, rest) :: tl -> max (1 + tree_height rest) (tree_height tl)
+
+(* True if sequence of (die to use, piece to move) is legal, given possible
+   permutations in dice. *)
+let move_legal_sequence board color (dice : int list list) (sequence : (int * Location.t) list) =
+  let find_tree loc trees = List.find trees ~f:(fun (Tree (l, _)) -> l = loc) in
+  let rec in_tree seq tree =
+    match seq with
+    | [] -> true
+    | hd::tl -> match find_tree hd tree with
+      | None -> false
+      | Some Tree(_, rest) -> in_tree tl rest
+  in let steps = (List.map sequence ~f:fst) in
+  let all_heights = List.map dice ~f:(fun x -> x |> legal_use_tree board color |> tree_height) in
+  match List.find dice ~f:(List.is_prefix ~prefix:steps ~equal:(=)) with
+  | None -> false
+  | Some active_dice_sequence ->
+    let tree = legal_use_tree board color active_dice_sequence in
+    (* Sequence must only use the dice available, of course. *)
+    in_tree (List.map sequence ~f:snd) tree
+    (* Sequence must use maximum possible number of dice. *)
+    && List.length sequence = (List.max_elt all_heights ~cmp:compare |> Option.value_exn)
+    (* Sequence must use greater of two dice where possible. *)
+    && (List.length steps > 1
+        || let max_elt = List.max_elt steps ~cmp:compare |> Option.value_exn in
+        List.hd_exn steps = max_elt || List.length (legal_uses board color max_elt) = 0)
+;;
