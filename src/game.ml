@@ -9,7 +9,7 @@ let starting_board : Board.t =
   let expand_pair (point, stack) = (Location.point point, Some stack) in
   let black_side = [(24, (White, 2));
                     (19, (Black, 5));
-                    (17, (Black, 2));
+                    (17, (Black, 3));
                     (13, (White, 5));] in
   let white_side = List.map ~f:flip_side black_side in
   let items = List.map ~f:expand_pair (white_side @ black_side) in
