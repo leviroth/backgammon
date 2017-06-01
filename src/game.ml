@@ -191,5 +191,6 @@ let perform_sequence game (sequence : (int * Location.t) list) =
   then let next_state = {board = aux game.board sequence;
                          turn = flip_color game.turn;
                          dice = roll_dice ()} in
-    Ok (Live next_state)
+    let won = Board.get next_state.board (Location.Home game.turn) = Some (game.turn, 15) in
+    if won then Ok (Won game.turn) else Ok (Live next_state)
   else Error "Illegal move"

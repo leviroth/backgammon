@@ -86,7 +86,7 @@ let play_game () =
   Random.self_init ();
   let rec loop game =
     match game with
-    | Game.Won c -> printf "%c won" (color_to_char c)
+    | Game.Won c -> printf "%c won\n" (color_to_char c)
     | Game.Live g ->
       print_endline @@ string_of_board g.Game.board;
       print_string "Turn: ";
