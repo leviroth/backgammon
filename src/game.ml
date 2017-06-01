@@ -1,6 +1,17 @@
 open Color
 open Core
 
+type live_game = {board : Board.t;
+                    dice : int * int;
+                    turn : color}
+
+
+type t = | Live of live_game
+         | Won of color
+
+let is_live t = match t with | Live _ -> true
+                             | Won _ -> false
+
 let flip_color = function | White -> Black | Black -> White
 
 let starting_board : Board.t =
@@ -151,3 +162,34 @@ let move_legal_sequence board color (dice : int list list) (sequence : (int * Lo
         || let max_elt = List.max_elt steps ~cmp:compare |> Option.value_exn in
         List.hd_exn steps = max_elt || List.length (legal_uses board color max_elt) = 0)
 ;;
+
+let roll_die () = Random.int 6 + 1
+let roll_dice () = (roll_die (), roll_die ())
+let rec initial_roll () =
+  let (a, b) = roll_dice () in
+  if a = b then initial_roll ()
+  else (a, b)
+
+let random_color () = if Random.bool () then White else Black
+
+let make_starting_state () = Live {board = starting_board;
+                                   dice = initial_roll ();
+                                   turn = random_color ()}
+
+let get_dice_sequences (a, b) =
+  if a = b then [[a; a; a; a]] else [[a; b]; [b; a]]
+
+let required_steps game = max_sequence_length game.board game.turn @@ get_dice_sequences game.dice
+
+let perform_sequence game (sequence : (int * Location.t) list) =
+  let color = game.turn in
+  let step b (die, start) = single_move_unsafe b start (Option.value_exn (Location.find_dest start die color)) in
+  let aux board sequence =
+    List.fold sequence ~init:board ~f:step
+  in
+  if move_legal_sequence game.board game.turn (get_dice_sequences game.dice) sequence
+  then let next_state = {board = aux game.board sequence;
+                         turn = flip_color game.turn;
+                         dice = roll_dice ()} in
+    Ok (Live next_state)
+  else Error "Illegal move"
