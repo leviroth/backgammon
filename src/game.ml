@@ -124,6 +124,9 @@ let rec tree_height = function
   | [] -> 0
   | Tree(_, rest) :: tl -> max (1 + tree_height rest) (tree_height tl)
 
+let all_heights board color dice = List.map dice ~f:(fun x -> x |> legal_use_tree board color |> tree_height)
+let max_sequence_length board color dice = all_heights board color dice |> List.max_elt ~cmp:compare |> Option.value_exn
+
 (* True if sequence of (die to use, piece to move) is legal, given possible
    permutations in dice. *)
 let move_legal_sequence board color (dice : int list list) (sequence : (int * Location.t) list) =
@@ -135,7 +138,6 @@ let move_legal_sequence board color (dice : int list list) (sequence : (int * Lo
       | None -> false
       | Some Tree(_, rest) -> in_tree tl rest
   in let steps = (List.map sequence ~f:fst) in
-  let all_heights = List.map dice ~f:(fun x -> x |> legal_use_tree board color |> tree_height) in
   match List.find dice ~f:(List.is_prefix ~prefix:steps ~equal:(=)) with
   | None -> false
   | Some active_dice_sequence ->
@@ -143,9 +145,9 @@ let move_legal_sequence board color (dice : int list list) (sequence : (int * Lo
     (* Sequence must only use the dice available, of course. *)
     in_tree (List.map sequence ~f:snd) tree
     (* Sequence must use maximum possible number of dice. *)
-    && List.length sequence = (List.max_elt all_heights ~cmp:compare |> Option.value_exn)
+    && List.length sequence = (max_sequence_length board color dice)
     (* Sequence must use greater of two dice where possible. *)
-    && (List.length steps > 1
+    && (List.length steps <> 1
         || let max_elt = List.max_elt steps ~cmp:compare |> Option.value_exn in
         List.hd_exn steps = max_elt || List.length (legal_uses board color max_elt) = 0)
 ;;
