@@ -70,3 +70,44 @@ let string_of_board board =
   let rows = List.range 1 6 |> List.map ~f:(row_to_string board Black) in
   let rows2 = List.range ~stride:(-1) 5 0 |> List.map ~f:(row_to_string board White) in
   top_label ^ String.concat rows ^ mid1 ^ mid2 ^ String.concat rows2 ^ bot_label
+
+let rec read_location color =
+  let line = In_channel.input_line_exn In_channel.stdin in
+  match line with
+  | "b" -> Location.Bar color
+  | s -> try (s |> int_of_string |> Location.point)
+    with | Failure _ | Invalid_argument _ -> (print_string "Retry: "; read_location color)
+
+let rec read_int_safe () =
+  let line = In_channel.input_line_exn In_channel.stdin in
+  try int_of_string line with | Failure _ -> print_string "Retry: "; read_int_safe ()
+
+let play_game () =
+  Random.self_init ();
+  let rec loop game =
+    match game with
+    | Game.Won c -> printf "%c won" (color_to_char c)
+    | Game.Live g ->
+      print_endline @@ string_of_board g.Game.board;
+      print_string "Turn: ";
+      Core.Out_channel.output_char stdout @@ color_to_char g.Game.turn;
+      Out_channel.newline stdout;
+      print_string "Dice: ";
+      print_string @@ string_of_int @@ fst @@ g.Game.dice;
+      Out_channel.output_char stdout ' ';
+      print_string @@ string_of_int @@ snd @@ g.Game.dice;
+      Out_channel.newline stdout;
+      Out_channel.flush stdout;
+      let required_steps = Game.required_steps g in
+      let sequence = List.map (List.range 0 required_steps) ~f:(fun _ ->
+          let location = read_location g.Game.turn in
+          let die = read_int_safe () in
+          (die, location))
+      in
+      let result = Game.perform_sequence g sequence in
+      match result with
+      | Error str -> print_endline str; loop game
+      | Ok next -> loop next
+  in loop @@ Game.make_starting_state ()
+
+let () = play_game ()
