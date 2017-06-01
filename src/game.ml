@@ -52,6 +52,22 @@ let home_table color =
   | White -> List.range ~stop:`inclusive 1 6
   | Black -> List.range ~stop:`inclusive 19 24
 
+let can_bear_off board color =
+  let distant_points = List.map ~f:Location.point
+      (match color with
+       | White -> List.range ~stop:`inclusive 7 24
+       | Black -> List.range ~stop:`inclusive 1 18)
+  in
+  List.for_all ((Location.Bar color) :: distant_points)
+    ~f:(fun x -> match Board.get board x with
+        | Some (c, _) -> c = flip_color color
+        | None -> true)
+
+let using_full_value point die color =
+  match color with
+  | White -> point = Location.point die
+  | Black -> point = Location.point (25 - die)
+
 let no_higher_points_filled board color point =
   let higher_points = match color with
     | White -> List.range (point + 1) 6 ~stop:`inclusive
@@ -62,27 +78,18 @@ let no_higher_points_filled board color point =
 
 let move_legal_individual board source die color =
   let dest = Location.find_dest source die color |> Option.value_exn in
-  let can_bear_off board color =
-    let distant_points = List.map ~f:Location.point
-        (match color with
-         | White -> List.range ~stop:`inclusive 7 24
-         | Black -> List.range ~stop:`inclusive 1 18)
-    in
-    List.for_all ((Location.Bar color) :: distant_points)
-      ~f:(fun x -> match Board.get board x with
-          | Some (c, _) -> c = flip_color color
-          | None -> true)
-  in
   let source_ready = has_piece_at board source color in
   let dest_ready = dest_open board dest color in
   let bar = Location.Bar color in
   match source with
   | Location.Bar(_) -> source_ready && dest_ready
-  | Location.Point(point) -> source_ready
-                             && dest_ready
-                             && Board.get board bar = None
-                             && (dest <> Location.Home(color) || can_bear_off board color
-                                                                 && no_higher_points_filled board color (point :> int))
+  | Location.Point(n) as point ->
+    source_ready
+    && dest_ready
+    && Board.get board bar = None
+    && (dest <> Location.Home(color) || can_bear_off board color
+                                        && (using_full_value point die color
+                                            || no_higher_points_filled board color (n :> int)))
   | Location.Home(_) -> false
 ;;
 
