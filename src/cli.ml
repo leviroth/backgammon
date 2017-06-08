@@ -76,11 +76,15 @@ let rec read_location color =
   match line with
   | "b" -> Location.Bar color
   | s -> try (s |> int_of_string |> Location.point)
-    with | Failure _ | Invalid_argument _ -> (print_string "Retry: "; read_location color)
+    with | Failure _ | Invalid_argument _ -> (print_string "Retry: ";
+                                              Out_channel.flush stdout;
+                                              read_location color)
 
 let rec read_int_safe () =
   let line = In_channel.input_line_exn In_channel.stdin in
-  try int_of_string line with | Failure _ -> print_string "Retry: "; read_int_safe ()
+  try int_of_string line with | Failure _ -> (print_string "Retry: ";
+                                              Out_channel.flush stdout;
+                                              read_int_safe ())
 
 let play_game () =
   Random.self_init ();
