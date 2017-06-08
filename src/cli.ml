@@ -100,7 +100,11 @@ let play_game () =
       Out_channel.flush stdout;
       let required_steps = Game.required_steps g in
       let sequence = List.map (List.range 0 required_steps) ~f:(fun _ ->
+          print_string "Enter location to move: ";
+          Out_channel.flush stdout;
           let location = read_location g.Game.turn in
+          print_string "Enter die: ";
+          Out_channel.flush stdout;
           let die = read_int_safe () in
           (die, location))
       in
