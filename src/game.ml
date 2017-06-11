@@ -1,5 +1,5 @@
-open Color
 open Core_kernel
+open Color
 
 type live_game = {board : Board.t;
                     dice : int * int;
