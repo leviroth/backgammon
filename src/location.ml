@@ -1,5 +1,5 @@
 open Color
-open Core
+open Core_kernel
 
 type t =
   | Bar of color

@@ -1,4 +1,4 @@
-open Core
+open Core_kernel
 open Color
 
 let color_to_char = function | White -> 'W' | Black -> 'B'
@@ -94,7 +94,7 @@ let play_game () =
     | Game.Live g ->
       print_endline @@ string_of_board g.Game.board;
       print_string "Turn: ";
-      Core.Out_channel.output_char stdout @@ color_to_char g.Game.turn;
+      Out_channel.output_char stdout @@ color_to_char g.Game.turn;
       Out_channel.newline stdout;
       print_string "Dice: ";
       print_string @@ string_of_int @@ fst @@ g.Game.dice;
