@@ -1,0 +1,14 @@
+OASISFormat: 0.4
+Name:        Backgammon
+Version:     0.1
+Synopsis:    An Ocaml implementation of Backgammon.
+Authors:     Levi Roth
+License:     MIT
+Executable cli
+  Path:       src/
+  BuildTools: ocamlbuild
+  MainIs:     cli.ml
+  CompiledObject: native
+  BuildDepends: core_kernel
+  ByteOpt: -thread -ppx 'ppx-jane -as-ppx'
+  NativeOpt: -thread -ppx 'ppx-jane -as-ppx'

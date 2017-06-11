@@ -5,3 +5,6 @@ _build
 *.byte
 *.d.native
 *.p.byte
+_tags
+setup.*
+myocamlbuild.ml
