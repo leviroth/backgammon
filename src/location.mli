@@ -7,19 +7,21 @@ type t = [
 [@@deriving sexp, compare]
 and point_int = int
 
+type point = [`Point of point_int]
+
 type source = [
   | `Bar of color
-  | `Point of point_int
+  | point
 ]
 
 type dest = [
-  | `Point of point_int
+  | point
   | `Home of color
 ]
 
-val point : int -> [`Point of point_int]
+val point : int -> point
 
-val valid_points : [`Point of point_int] list
+val valid_points : point list
 
 val valid : t list
 
