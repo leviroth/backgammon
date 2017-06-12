@@ -69,7 +69,7 @@ let can_bear_off board color =
        | White -> List.range ~stop:`inclusive 7 24
        | Black -> List.range ~stop:`inclusive 1 18)
   in
-  List.for_all ((Location.Bar color) :: distant_points)
+  List.for_all (Location.(`Bar color) :: distant_points)
     ~f:(fun x -> match Board.get board x with
         | Some (c, _) -> c = flip_color color
         | None -> true)
@@ -91,17 +91,18 @@ let move_legal_individual board source die color =
   let dest = Location.find_dest source die color |> Option.value_exn in
   let source_ready = has_piece_at board source color in
   let dest_ready = dest_open board dest color in
-  let bar = Location.Bar color in
+  let bar = Location.(`Bar color) in
+  let open Location in
   match source with
-  | Location.Bar(_) -> source_ready && dest_ready
-  | Location.Point(n) as point ->
+  | `Bar _ -> source_ready && dest_ready
+  | `Point n as point ->
     source_ready
     && dest_ready
     && Board.get board bar = None
-    && (dest <> Location.Home(color) || can_bear_off board color
+    && (dest <> `Home color || can_bear_off board color
                                         && (using_full_value point die color
                                             || no_higher_points_filled board color (n :> int)))
-  | Location.Home(_) -> false
+  | `Home _ -> false
 ;;
 
 let single_move_unsafe board source dest =
@@ -110,10 +111,10 @@ let single_move_unsafe board source dest =
   let hitting = has_piece_at board dest other in
   let piece_removed = remove_from board source in
   let piece_added = add_to piece_removed dest color in
-  if hitting then add_to piece_added (Location.Bar(other)) other else piece_added
+  if hitting then add_to piece_added (Location.(`Bar other)) other else piece_added
 
 let legal_uses board color die =
-  let sources = ((Location.Bar color) :: Location.valid_points) in
+  let sources = Location.(`Bar color) :: Location.valid_points in
   List.filter sources ~f:(fun source ->
       move_legal_individual board source die color)
 ;;
@@ -191,6 +192,6 @@ let perform_sequence game (sequence : (int * Location.t) list) =
   then let next_state = {board = aux game.board sequence;
                          turn = flip_color game.turn;
                          dice = roll_dice ()} in
-    let won = Board.get next_state.board (Location.Home game.turn) = Some (game.turn, 15) in
+    let won = Board.get next_state.board Location.(`Home game.turn) = Some (game.turn, 15) in
     if won then Ok (Won game.turn) else Ok (Live next_state)
   else Error "Illegal move"

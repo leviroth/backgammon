@@ -1,11 +1,21 @@
 open Color
 
-type t =
-  | Bar of color
-  | Point of point_int
-  | Home of color
+type t = [
+  | `Bar of color
+  | `Point of point_int
+  | `Home of color ]
 [@@deriving sexp, compare]
-and point_int = private int
+and point_int = int
+
+type source = [
+  | `Bar of color
+  | `Point of point_int
+]
+
+type dest = [
+  | `Point of point_int
+  | `Home of color
+]
 
 val point : int -> t
 
