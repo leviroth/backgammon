@@ -8,21 +8,20 @@ module Comparable_location = struct
   include Comparable.Make(T)
 end
 
-module Location_map = Comparable_location.Map;;
+module Location_map = Comparable_location.Map
 
-type t = Piece_stack.t Location_map.t;;
+type t = Piece_stack.t Location_map.t
 
-let empty : t =
+let empty =
   Location.valid
   |> List.map ~f:(fun x -> (x, None))
   |> Location_map.of_alist_exn
-;;
 
-let get : t -> Location.t -> Piece_stack.t =
+let get =
   Location_map.find_exn
 
-let put board ~location ~contents : t =
+let put board ~location ~contents =
   Location_map.add board ~key:location ~data:contents
 
-let update board ~location ~f : t =
+let update board ~location ~f =
   Location_map.change board location ~f
