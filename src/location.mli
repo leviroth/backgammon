@@ -5,7 +5,7 @@ type t = [
   | `Point of point_int
   | `Home of color ]
 [@@deriving sexp, compare]
-and point_int = int
+and point_int = private int
 
 type point = [`Point of point_int]
 
