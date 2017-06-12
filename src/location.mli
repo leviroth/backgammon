@@ -17,10 +17,10 @@ type dest = [
   | `Home of color
 ]
 
-val point : int -> t
+val point : int -> [`Point of point_int]
 
-val valid_points : t list
+val valid_points : [`Point of point_int] list
 
 val valid : t list
 
-val find_dest : t -> int -> color -> t option
+val find_dest : source -> int -> color -> dest

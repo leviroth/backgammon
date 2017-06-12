@@ -32,9 +32,8 @@ let valid : t list =
 let find_dest source steps c =
   let step_fn = match c with | White -> (-) | Black -> (+) in
   match source with
-  | `Bar White -> Some (`Point (25 - steps))
-  | `Bar Black -> Some (`Point steps)
+  | `Bar White -> `Point (25 - steps)
+  | `Bar Black -> `Point steps
   | `Point (start) -> let dest = step_fn (start :> int) steps in
     let open Int in
-    if dest >= 1 && dest <= 24 then Some (`Point dest) else Some (`Home c)
-  | `Home _ -> None
+    if dest >= 1 && dest <= 24 then `Point dest else `Home c
