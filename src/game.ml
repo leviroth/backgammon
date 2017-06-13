@@ -2,9 +2,8 @@ open Core_kernel
 open Color
 
 type live_game = {board : Board.t;
-                    dice : int * int;
-                    turn : color}
-
+                  dice : int * int;
+                  turn : color}
 
 type t = | Live of live_game
          | Won of color
@@ -25,28 +24,24 @@ let starting_board : Board.t =
   let white_side = List.map ~f:flip_side black_side in
   let items = List.map ~f:expand_pair (white_side @ black_side) in
   List.fold ~init:Board.empty ~f:(fun m (k, v) -> Board.put m ~location:(k :> Location.t) ~contents:v) items
-;;
 
 let remove_from board ?(n=1) location =
   let update_fn = function
     | Some (color, count) -> if count = n then None else Some (color, count - n)
     | None -> None in
   Board.update board ~location ~f:(Option.map ~f:update_fn)
-;;
 
 let add_to board ?(n=1) location color =
   let update_fn = function
     | Some (old_color, count) when old_color = color -> Some(color, count + n)
     | Some (_, _) | None -> Some(color, n) in
   Board.update board ~location ~f:(Option.map ~f:update_fn)
-;;
 
 let move board source dest =
   Option.map (Board.get board source)
     ~f:(fun (color, _) -> (board
                            |> (fun x -> remove_from x source)
                            |> (fun x -> add_to x dest color)))
-;;
 
 let has_piece_at board location color =
   match Board.get board (location :> Location.t) with
@@ -102,7 +97,6 @@ let move_legal_individual board (source : [< Location.source]) die color =
     && (dest <> `Home color || can_bear_off board color
                                         && (using_full_value point die color
                                             || no_higher_points_filled board color (n :> int)))
-;;
 
 let single_move_unsafe board (source : Location.source) dest =
   let (color, _) = Option.value_exn (Board.get board (source :> Location.t)) in
@@ -116,7 +110,6 @@ let legal_uses board color die =
   let (sources : Location.source list) = Location.(`Bar color) :: (Location.valid_points :> Location.source list) in
   List.filter sources ~f:(fun source ->
       move_legal_individual board source die color)
-;;
 
 type move_tree = Tree of Location.source * move_tree list
 
@@ -161,7 +154,6 @@ let move_legal_sequence board color (dice : int list list) (sequence : (int * Lo
     && (List.length steps <> 1
         || let max_elt = List.max_elt steps ~cmp:compare |> Option.value_exn in
         List.hd_exn steps = max_elt || List.length (legal_uses board color max_elt) = 0)
-;;
 
 let roll_die () = Random.int 6 + 1
 let roll_dice () = (roll_die (), roll_die ())
@@ -192,5 +184,5 @@ let perform_sequence game (sequence : (int * Location.source) list) =
                          turn = flip_color game.turn;
                          dice = roll_dice ()} in
     let won = Board.get next_state.board Location.(`Home game.turn) = Some (game.turn, 15) in
-    if won then Ok (Won game.turn) else Ok (Live next_state)
+    Ok (if won then Won game.turn else Live next_state)
   else Error "Illegal move"
