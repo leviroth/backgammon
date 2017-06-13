@@ -12,3 +12,12 @@ Executable cli
   BuildDepends: core_kernel
   ByteOpt: -thread -ppx 'ppx-jane -as-ppx'
   NativeOpt: -thread -ppx 'ppx-jane -as-ppx'
+
+Executable test
+  Path:       src/
+  BuildTools: ocamlbuild
+  MainIs:     test.ml
+  CompiledObject: native
+  BuildDepends: core_kernel, oUnit
+  ByteOpt: -thread -ppx 'ppx-jane -as-ppx'
+  NativeOpt: -thread -ppx 'ppx-jane -as-ppx'

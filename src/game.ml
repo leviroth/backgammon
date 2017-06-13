@@ -32,7 +32,7 @@ let add_to board ?(n=1) location color =
   let update_fn = function
     | Some (old_color, count) when old_color = color -> Some(color, count + n)
     | Some (_, _) | None -> Some(color, n) in
-  Board.update board ~location ~f:(Option.map ~f:update_fn)
+  Board.update board ~location:(location :> Location.t) ~f:(Option.map ~f:update_fn)
 
 let move board source dest =
   Option.map (Board.get board source)
@@ -45,7 +45,7 @@ let has_piece_at board location color =
   | Some (c, count) -> c = color && count > 0
   | None -> false
 
-let dest_open board dest color =
+let dest_open board (dest : Location.dest) color =
   match Board.get board (dest :> Location.t) with
   | Some (c, count) -> c = color || count <= 1
   | None -> true
@@ -95,7 +95,7 @@ let move_legal_individual board (source : [< Location.source]) die color =
                                         && (using_full_value point die color
                                             || no_higher_points_filled board color (n :> int)))
 
-let single_move_unsafe board (source : Location.source) dest =
+let single_move_unsafe board (source : [< Location.source]) (dest : [< Location.dest]) =
   let (color, _) = Option.value_exn (Board.get board (source :> Location.t)) in
   let other = Color.flip_color color in
   let hitting = has_piece_at board dest other in
@@ -104,7 +104,9 @@ let single_move_unsafe board (source : Location.source) dest =
   if hitting then add_to piece_added (Location.(`Bar other)) other else piece_added
 
 let legal_uses board color die =
-  let (sources : Location.source list) = Location.(`Bar color) :: (Location.valid_points :> Location.source list) in
+  let bar : Location.source = Location.(`Bar color) in
+  let points : Location.source list = (Location.valid_points :> Location.source list) in
+  let sources = bar :: points in
   List.filter sources ~f:(fun source ->
       move_legal_individual board source die color)
 
@@ -113,7 +115,7 @@ type move_tree = Tree of Location.source * move_tree list
 (** Construct a tree of possible moves, given a list of dice. Must be pruned for
     under-use of available dice. *)
 let rec legal_use_tree board color dice : move_tree list =
-  let next_board loc die = single_move_unsafe board loc (Location.find_dest loc die color :> Location.t) in
+  let next_board loc die = single_move_unsafe board loc (Location.find_dest loc die color) in
   match dice with
   | [] -> []
   | hd::tl -> legal_uses board color hd
@@ -130,7 +132,7 @@ let max_sequence_length board color dice = all_heights board color dice |> List.
 
 (* True if sequence of (die to use, piece to move) is legal, given possible
    permutations in dice. *)
-let move_legal_sequence board color (dice : int list list) (sequence : (int * Location.source) list) =
+let move_legal_sequence board color dice sequence =
   let find_tree loc trees = List.find trees ~f:(fun (Tree (l, _)) -> l = loc) in
   let rec in_tree seq tree =
     match seq with
@@ -144,7 +146,7 @@ let move_legal_sequence board color (dice : int list list) (sequence : (int * Lo
   | Some active_dice_sequence ->
     let tree = legal_use_tree board color active_dice_sequence in
     (* Sequence must only use the dice available, of course. *)
-    in_tree (List.map sequence ~f:snd) tree
+    in_tree (List.map (sequence :> (int * Location.source) list) ~f:snd) tree
     (* Sequence must use maximum possible number of dice. *)
     && List.length sequence = (max_sequence_length board color dice)
     (* Sequence must use greater of two dice where possible. *)
@@ -172,7 +174,7 @@ let required_steps game = max_sequence_length game.board game.turn @@ get_dice_s
 
 let perform_sequence game (sequence : (int * Location.source) list) =
   let color = game.turn in
-  let step b (die, start) = single_move_unsafe b start (Location.find_dest start die color :> Location.t) in
+  let step b (die, start) = single_move_unsafe b start (Location.find_dest start die color) in
   let aux board sequence =
     List.fold sequence ~init:board ~f:step
   in

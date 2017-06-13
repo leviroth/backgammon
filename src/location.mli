@@ -23,4 +23,4 @@ val valid_points : point list
 
 val valid : t list
 
-val find_dest : source -> int -> Color.t -> dest
+val find_dest : [< source] -> int -> Color.t -> dest
