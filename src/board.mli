@@ -1,8 +1,6 @@
-open Color
+type t
 
-type t;;
-
-val empty : t;;
+val empty : t
 
 val get : t -> Location.t -> Piece_stack.t
 

@@ -1,12 +1,9 @@
 open Core_kernel
-open Color
-
-let color_to_char = function | White -> 'W' | Black -> 'B'
 
 let quadrants color =
-  let left_range, right_range = match color with | Black -> (List.range 13 19,
+  let left_range, right_range = match color with | Color.Black -> (List.range 13 19,
                                                              List.range 19 25)
-                                                 | White -> (List.range ~stride:(-1) 12 6,
+                                                 | Color.White -> (List.range ~stride:(-1) 12 6,
                                                              List.range ~stride:(-1) 6 0) in
   let left_points = left_range |> List.map ~f:Location.point in
   let right_points = right_range |> List.map ~f:Location.point in
@@ -41,14 +38,14 @@ let string_of_mid_row board color =
 let spot_to_char board point row =
   match Board.get board point with
   | None -> '-'
-  | Some (color, count) -> if count >= row then color_to_char color else '-'
+  | Some (color, count) -> if count >= row then Color.char_of_t color else '-'
 
 let bar_string board row color =
   let empty = "  |  |  " in
   let pieces = match Board.get board Location.(`Bar color) with | None -> 0 | Some(_, n) -> n in
   match row with
   | 0 | 12 -> if pieces > 5 then Printf.sprintf "  |%d|  " pieces else empty
-  | _ -> if pieces > 5 - row then Printf.sprintf "  | %c|  " @@ color_to_char color else empty
+  | _ -> if pieces > 5 - row then Printf.sprintf "  | %c|  " @@ Color.char_of_t color else empty
 
 let points_to_string board row points =
   List.map points ~f:(fun point -> spot_to_char board (point :> Location.t) row |> String.of_char)
@@ -65,10 +62,10 @@ let row_to_string board color row =
 let string_of_board board =
   let top_label = "+-13--14--15--16--17--18-------19--20--21--22--23--24--+\n" in
   let bot_label = "+-12--11--10---9---8---7--------6---5---4---3---2---1--+" in
-  let mid1 = string_of_mid_row board Black in
-  let mid2 = string_of_mid_row board White in
-  let rows = List.range 1 6 |> List.map ~f:(row_to_string board Black) in
-  let rows2 = List.range ~stride:(-1) 5 0 |> List.map ~f:(row_to_string board White) in
+  let mid1 = string_of_mid_row board Color.Black in
+  let mid2 = string_of_mid_row board Color.White in
+  let rows = List.range 1 6 |> List.map ~f:(row_to_string board Color.Black) in
+  let rows2 = List.range ~stride:(-1) 5 0 |> List.map ~f:(row_to_string board Color.White) in
   top_label ^ String.concat rows ^ mid1 ^ mid2 ^ String.concat rows2 ^ bot_label
 
 let rec read_location color : Location.source =
@@ -90,11 +87,11 @@ let play_game () =
   Random.self_init ();
   let rec loop game =
     match game with
-    | Game.Won c -> printf "%c won\n" (color_to_char c)
+    | Game.Won c -> printf "%c won\n" (Color.char_of_t c)
     | Game.Live g ->
       print_endline @@ string_of_board g.Game.board;
       print_string "Turn: ";
-      Out_channel.output_char stdout @@ color_to_char g.Game.turn;
+      Out_channel.output_char stdout @@ Color.char_of_t g.Game.turn;
       Out_channel.newline stdout;
       print_string "Dice: ";
       print_string @@ string_of_int @@ fst @@ g.Game.dice;

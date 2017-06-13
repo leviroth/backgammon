@@ -1,26 +1,23 @@
 open Core_kernel
-open Color
 
 type live_game = {board : Board.t;
                   dice : int * int;
-                  turn : color}
+                  turn : Color.t}
 
 type t = | Live of live_game
-         | Won of color
+         | Won of Color.t
 
 let is_live t = match t with | Live _ -> true
                              | Won _ -> false
 
-let flip_color = function | White -> Black | Black -> White
-
 let starting_board : Board.t =
   let flip_side (point, (color, count)) = (25 - point,
-                                           (flip_color color, count)) in
+                                           (Color.flip_color color, count)) in
   let expand_pair (point, stack) = (Location.point point, Some stack) in
-  let black_side = [(24, (White, 2));
-                    (19, (Black, 5));
-                    (17, (Black, 3));
-                    (13, (White, 5));] in
+  let black_side = [(24, (Color.White, 2));
+                    (19, (Color.Black, 5));
+                    (17, (Color.Black, 3));
+                    (13, (Color.White, 5));] in
   let white_side = List.map ~f:flip_side black_side in
   let items = List.map ~f:expand_pair (white_side @ black_side) in
   List.fold ~init:Board.empty ~f:(fun m (k, v) -> Board.put m ~location:(k :> Location.t) ~contents:v) items
@@ -55,32 +52,32 @@ let dest_open board dest color =
 
 let home_table color =
   match color with
-  | White -> List.range ~stop:`inclusive 1 6
-  | Black -> List.range ~stop:`inclusive 19 24
+  | Color.White -> List.range ~stop:`inclusive 1 6
+  | Color.Black -> List.range ~stop:`inclusive 19 24
 
 let can_bear_off board color =
   let distant_points = List.map ~f:Location.point
       (match color with
-       | White -> List.range ~stop:`inclusive 7 24
-       | Black -> List.range ~stop:`inclusive 1 18)
+       | Color.White -> List.range ~stop:`inclusive 7 24
+       | Color.Black -> List.range ~stop:`inclusive 1 18)
   in
   List.for_all (Location.(`Bar color) :: (distant_points :> Location.t list))
     ~f:(fun x -> match Board.get board x with
-        | Some (c, _) -> c = flip_color color
+        | Some (c, _) -> c = Color.flip_color color
         | None -> true)
 
 let using_full_value point die color =
   match color with
-  | White -> point = Location.point die
-  | Black -> point = Location.point (25 - die)
+  | Color.White -> point = Location.point die
+  | Color.Black -> point = Location.point (25 - die)
 
 let no_higher_points_filled board color point =
   let higher_points = match color with
-    | White -> List.range (point + 1) 6 ~stop:`inclusive
-    | Black -> List.range ~stride:(-1) (25 - point - 1) 19 ~stop:`inclusive in
+    | Color.White -> List.range (point + 1) 6 ~stop:`inclusive
+    | Color.Black -> List.range ~stride:(-1) (25 - point - 1) 19 ~stop:`inclusive in
   higher_points
   |> List.map ~f:Location.point
-  |> List.for_all ~f:(fun x -> match Board.get board (x :> Location.t) with | None -> true | Some (c, _) -> c = flip_color color)
+  |> List.for_all ~f:(fun x -> match Board.get board (x :> Location.t) with | None -> true | Some (c, _) -> c = Color.flip_color color)
 
 let move_legal_individual board (source : [< Location.source]) die color =
   let dest = Location.find_dest source die color in
@@ -100,7 +97,7 @@ let move_legal_individual board (source : [< Location.source]) die color =
 
 let single_move_unsafe board (source : Location.source) dest =
   let (color, _) = Option.value_exn (Board.get board (source :> Location.t)) in
-  let other = flip_color color in
+  let other = Color.flip_color color in
   let hitting = has_piece_at board dest other in
   let piece_removed = remove_from board (source :> Location.t) in
   let piece_added = add_to piece_removed dest color in
@@ -162,7 +159,7 @@ let rec initial_roll () =
   if a = b then initial_roll ()
   else (a, b)
 
-let random_color () = if Random.bool () then White else Black
+let random_color () = if Random.bool () then Color.White else Color.Black
 
 let make_starting_state () = Live {board = starting_board;
                                    dice = initial_roll ();
@@ -181,7 +178,7 @@ let perform_sequence game (sequence : (int * Location.source) list) =
   in
   if move_legal_sequence game.board game.turn (get_dice_sequences game.dice) sequence
   then let next_state = {board = aux game.board sequence;
-                         turn = flip_color game.turn;
+                         turn = Color.flip_color game.turn;
                          dice = roll_dice ()} in
     let won = Board.get next_state.board Location.(`Home game.turn) = Some (game.turn, 15) in
     Ok (if won then Won game.turn else Live next_state)

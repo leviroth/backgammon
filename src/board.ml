@@ -1,5 +1,4 @@
 open Core_kernel
-open Color
 
 module Comparable_location = struct
   module T = struct

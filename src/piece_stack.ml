@@ -1,1 +1,1 @@
-type t = (Color.color * int) option
+type t = (Color.t * int) option
