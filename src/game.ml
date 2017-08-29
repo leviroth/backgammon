@@ -74,7 +74,7 @@ let no_higher_points_filled board color point =
   |> List.map ~f:Location.point
   |> List.for_all ~f:(fun x -> match Board.get board (x :> Location.t) with | None -> true | Some (c, _) -> c = Color.flip_color color)
 
-let move_legal_individual board (source : [< Location.source]) die color =
+let move_legal_individual board source die color =
   let dest = Location.find_dest source die color in
   let source_ready = has_piece_at board source color in
   let dest_ready = dest_open board dest color in
@@ -90,6 +90,8 @@ let move_legal_individual board (source : [< Location.source]) die color =
                                         && (using_full_value point die color
                                             || no_higher_points_filled board color (n :> int)))
 
+(** Perform a single move from source to dest, returning the new board. Assumes
+   that move was already checked for legality. *)
 let single_move_unsafe board (source : [< Location.source]) (dest : [< Location.dest]) =
   let (color, _) = Option.value_exn (Board.get board (source :> Location.t)) in
   let other = Color.flip_color color in
