@@ -50,11 +50,6 @@ let dest_open board (dest : Location.dest) color =
   | Some (c, count) -> c = color || count <= 1
   | None -> true
 
-let home_table color =
-  match color with
-  | Color.White -> List.range ~stop:`inclusive 1 6
-  | Color.Black -> List.range ~stop:`inclusive 19 24
-
 let can_bear_off board color =
   let distant_points = List.map ~f:Location.point
       (match color with
