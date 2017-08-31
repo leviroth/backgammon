@@ -20,7 +20,8 @@ let starting_board : Board.t =
                     (13, (Color.White, 5));] in
   let white_side = List.map ~f:flip_side black_side in
   let items = List.map ~f:expand_pair (white_side @ black_side) in
-  List.fold ~init:Board.empty ~f:(fun m (k, v) -> Board.put m ~location:(k :> Location.t) ~contents:v) items
+  let insert_item board (location, contents) = Board.put board ~location ~contents in
+  List.fold ~init:Board.empty ~f:insert_item items
 
 let remove_from board ?(n=1) location =
   let update_fn = function
@@ -32,7 +33,7 @@ let add_to board ?(n=1) location color =
   let update_fn = function
     | Some (old_color, count) when old_color = color -> Some(color, count + n)
     | Some (_, _) | None -> Some(color, n) in
-  Board.update board ~location:(location :> Location.t) ~f:(Option.map ~f:update_fn)
+  Board.update board ~location ~f:(Option.map ~f:update_fn)
 
 let move board source dest =
   Option.map (Board.get board source)
@@ -41,12 +42,12 @@ let move board source dest =
                            |> (fun x -> add_to x dest color)))
 
 let has_piece_at board location color =
-  match Board.get board (location :> Location.t) with
+  match Board.get board location with
   | Some (c, count) -> c = color && count > 0
   | None -> false
 
 let dest_open board (dest : Location.dest) color =
-  match Board.get board (dest :> Location.t) with
+  match Board.get board dest with
   | Some (c, count) -> c = color || count <= 1
   | None -> true
 
@@ -72,7 +73,7 @@ let no_higher_points_filled board color point =
     | Color.Black -> List.range ~stride:(-1) (25 - point - 1) 19 ~stop:`inclusive in
   higher_points
   |> List.map ~f:Location.point
-  |> List.for_all ~f:(fun x -> match Board.get board (x :> Location.t) with | None -> true | Some (c, _) -> c = Color.flip_color color)
+  |> List.for_all ~f:(fun x -> match Board.get board x with | None -> true | Some (c, _) -> c = Color.flip_color color)
 
 let move_legal_individual board source die color =
   let dest = Location.find_dest source die color in
@@ -87,16 +88,16 @@ let move_legal_individual board source die color =
     && dest_ready
     && Board.get board bar = None
     && (dest <> `Home color || can_bear_off board color
-                                        && (using_full_value point die color
-                                            || no_higher_points_filled board color (n :> int)))
+                               && (using_full_value point die color
+                                   || no_higher_points_filled board color (n :> int)))
 
 (** Perform a single move from source to dest, returning the new board. Assumes
-   that move was already checked for legality. *)
+    that move was already checked for legality. *)
 let single_move_unsafe board (source : [< Location.source]) (dest : [< Location.dest]) =
-  let (color, _) = Option.value_exn (Board.get board (source :> Location.t)) in
+  let (color, _) = Option.value_exn (Board.get board source) in
   let other = Color.flip_color color in
   let hitting = has_piece_at board dest other in
-  let piece_removed = remove_from board (source :> Location.t) in
+  let piece_removed = remove_from board source in
   let piece_added = add_to piece_removed dest color in
   if hitting then add_to piece_added (Location.(`Bar other)) other else piece_added
 
@@ -119,7 +120,7 @@ let rec legal_use_tree board color dice : move_tree list =
               |> List.map ~f:(fun move -> Tree (move, legal_use_tree (next_board move hd) color tl))
 
 (** Find the maximum height of a list of trees; in other words, the maximum
-   number of moves possible. *)
+    number of moves possible. *)
 let rec tree_height = function
   | [] -> 0
   | Tree(_, rest) :: tl -> max (1 + tree_height rest) (tree_height tl)
@@ -143,7 +144,7 @@ let move_legal_sequence board color dice sequence =
   | Some active_dice_sequence ->
     let tree = legal_use_tree board color active_dice_sequence in
     (* Sequence must only use the dice available, of course. *)
-    in_tree (List.map (sequence :> (int * Location.source) list) ~f:snd) tree
+    in_tree (List.map sequence ~f:snd) tree
     (* Sequence must use maximum possible number of dice. *)
     && List.length sequence = (max_sequence_length board color dice)
     (* Sequence must use greater of two dice where possible. *)
