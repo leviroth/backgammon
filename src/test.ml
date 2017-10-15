@@ -18,22 +18,23 @@ let test_individual_legality _ =
 
 let test_sequence_legality _ =
   let open Game in
-  assert_equal true (move_legal_sequence starting_board White [[5; 3]; [3; 5]] [(3, Location.point 24); (5, Location.point 13)]);
-  assert_equal false (move_legal_sequence starting_board White [[5; 3]; [3; 5]] [(3, Location.point 24); (5, Location.point 11)]);
-  assert_equal false (move_legal_sequence starting_board White [[5; 3]; [3; 5]] [(3, Location.point 24)]);
+  let move_legal_sequence_upcast a b c d = move_legal_sequence a b c (d :> (int * Location.t) list) in
+  assert_equal true (move_legal_sequence_upcast starting_board White [[5; 3]; [3; 5]] [(3, Location.point 24); (5, Location.point 13)]);
+  assert_equal false (move_legal_sequence_upcast starting_board White [[5; 3]; [3; 5]] [(3, Location.point 24); (5, Location.point 11)]);
+  assert_equal false (move_legal_sequence_upcast starting_board White [[5; 3]; [3; 5]] [(3, Location.point 24)]);
   let stripped_board = construct_board [(3, (Black, 2)); (1, (Black, 2)); (4, (White, 2))] in
-  assert_equal false (move_legal_sequence stripped_board White [[1; 2]; [2; 1]] [(1, Location.point 4)]);
-  assert_equal false (move_legal_sequence
+  assert_equal false (move_legal_sequence_upcast stripped_board White [[1; 2]; [2; 1]] [(1, Location.point 4)]);
+  assert_equal false (move_legal_sequence_upcast
                         (Board.put stripped_board ~location:(Location.point 1) ~contents:None)
                         White
                         [[1; 2]; [2; 1]]
                         [(2, Location.point 4)]);
-  assert_equal true (move_legal_sequence stripped_board White [[1; 2]; [2; 1]] [(2, Location.point 4)]);
+  assert_equal true (move_legal_sequence_upcast stripped_board White [[1; 2]; [2; 1]] [(2, Location.point 4)]);
   let stripped_board_2 = construct_board [(6, (White, 1)); (5, (White, 1))] in
-  assert_equal true (move_legal_sequence stripped_board_2 White [[1; 6]; [6; 1]] [(1, Location.point 6); (6, Location.point 5)]);
-  assert_equal false (move_legal_sequence stripped_board_2 White [[1; 6]; [6; 1]] [(6, Location.point 5); (1, Location.point 6)]);
+  assert_equal true (move_legal_sequence_upcast stripped_board_2 White [[1; 6]; [6; 1]] [(1, Location.point 6); (6, Location.point 5)]);
+  assert_equal false (move_legal_sequence_upcast stripped_board_2 White [[1; 6]; [6; 1]] [(6, Location.point 5); (1, Location.point 6)]);
   let stripped_board_3 = Board.put stripped_board_2 ~location:(Location.point 6) ~contents:(Some (Black, 1)) in
-  assert_equal true (move_legal_sequence stripped_board_3 White [[1; 6]; [6; 1]] [(1, Location.point 5); (6, Location.point 4)])
+  assert_equal true (move_legal_sequence_upcast stripped_board_3 White [[1; 6]; [6; 1]] [(1, Location.point 5); (6, Location.point 4)])
 
 let suite =
   "suite">:::
