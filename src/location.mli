@@ -17,7 +17,7 @@ type dest = [
   | `Home of Color.t
 ]
 
-val point : int -> point
+val point : int -> [> point]
 
 val valid_points : point list
 
