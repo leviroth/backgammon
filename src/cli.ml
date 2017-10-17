@@ -23,7 +23,7 @@ let mid_bar_string count =
   String.concat [" |"; inside; "|"]
 
 let mid_rows board points =
-  List.map points ~f:(fun x -> Board.get board (x :> Location.t) |> piece_count |> mid_string)
+  List.map points ~f:(fun x -> Board.get board x |> piece_count |> mid_string)
   |> String.concat
 
 let string_of_mid_row board color =
@@ -48,7 +48,7 @@ let bar_string board row color =
   | _ -> if pieces > 5 - row then Printf.sprintf "  | %c|  " @@ Color.char_of_t color else empty
 
 let points_to_string board row points =
-  List.map points ~f:(fun point -> spot_to_char board (point :> Location.t) row |> String.of_char)
+  List.map points ~f:(fun point -> spot_to_char board point row |> String.of_char)
   |> String.concat ~sep:"   "
 
 let row_to_string board color row =
@@ -72,7 +72,7 @@ let rec read_location color : Location.source =
   let line = In_channel.input_line_exn In_channel.stdin in
   match line with
   | "b" -> Location.(`Bar color)
-  | s -> try (s |> int_of_string |> Location.point :> Location.source)
+  | s -> try (s |> int_of_string |> Location.point)
     with | Failure _ | Invalid_argument _ -> (print_string "Retry: ";
                                               Out_channel.flush stdout;
                                               read_location color)

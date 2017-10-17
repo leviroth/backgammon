@@ -46,7 +46,7 @@ let has_piece_at board location color =
   | Some (c, count) -> c = color && count > 0
   | None -> false
 
-let dest_open board (dest : Location.dest) color =
+let dest_open board dest color =
   match Board.get board dest with
   | Some (c, count) -> c = color || count <= 1
   | None -> true
@@ -57,7 +57,7 @@ let can_bear_off board color =
        | Color.White -> List.range ~stop:`inclusive 7 24
        | Color.Black -> List.range ~stop:`inclusive 1 18)
   in
-  List.for_all (Location.(`Bar color) :: (distant_points :> Location.t list))
+  List.for_all (Location.(`Bar color) :: distant_points)
     ~f:(fun x -> match Board.get board x with
         | Some (c, _) -> c = Color.flip_color color
         | None -> true)
@@ -93,7 +93,7 @@ let move_legal_individual board source die color =
 
 (** Perform a single move from source to dest, returning the new board. Assumes
     that move was already checked for legality. *)
-let single_move_unsafe board (source : [< Location.source]) (dest : [< Location.dest]) =
+let single_move_unsafe board source dest =
   let (color, _) = Option.value_exn (Board.get board source) in
   let other = Color.flip_color color in
   let hitting = has_piece_at board dest other in
@@ -102,8 +102,8 @@ let single_move_unsafe board (source : [< Location.source]) (dest : [< Location.
   if hitting then add_to piece_added (Location.(`Bar other)) other else piece_added
 
 let legal_uses board color die =
-  let bar : Location.source = Location.(`Bar color) in
-  let points : Location.source list = (Location.valid_points :> Location.source list) in
+  let bar = Location.(`Bar color) in
+  let points = Location.valid_points in
   let sources = bar :: points in
   List.filter sources ~f:(fun source ->
       move_legal_individual board source die color)
@@ -170,7 +170,7 @@ let get_dice_sequences (a, b) =
 
 let required_steps game = max_sequence_length game.board game.turn @@ get_dice_sequences game.dice
 
-let perform_sequence game (sequence : (int * Location.source) list) =
+let perform_sequence game sequence =
   let color = game.turn in
   let step b (die, start) = single_move_unsafe b start (Location.find_dest start die color) in
   let aux board sequence =

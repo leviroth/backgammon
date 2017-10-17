@@ -19,7 +19,7 @@ type dest = [
 
 val point : int -> [> point]
 
-val valid_points : point list
+val valid_points : [> point] list
 
 val valid : t list
 
