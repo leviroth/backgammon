@@ -1,4 +1,5 @@
-open Core_kernel
+open Base
+let (@@) = Caml.(@@)
 
 type live_game = {board : Board.t;
                   dice : int * int;
@@ -31,7 +32,7 @@ let remove_from board ?(n=1) location =
 
 let add_to board ?(n=1) location color =
   let update_fn = function
-    | Some (old_color, count) when old_color = color -> Some(color, count + n)
+    | Some (old_color, count) when [%compare.equal: Color.t] old_color color -> Some(color, count + n)
     | Some (_, _) | None -> Some(color, n) in
   Board.update board ~location ~f:(Option.map ~f:update_fn)
 
@@ -43,12 +44,12 @@ let move board source dest =
 
 let has_piece_at board location color =
   match Board.get board location with
-  | Some (c, count) -> c = color && count > 0
+  | Some (c, count) -> [%compare.equal: Color.t] c color && count > 0
   | None -> false
 
 let dest_open board dest color =
   match Board.get board dest with
-  | Some (c, count) -> c = color || count <= 1
+  | Some (c, count) -> [%compare.equal: Color.t] c color || count <= 1
   | None -> true
 
 let can_bear_off board color =
@@ -59,13 +60,13 @@ let can_bear_off board color =
   in
   List.for_all (Location.(`Bar color) :: distant_points)
     ~f:(fun x -> match Board.get board x with
-        | Some (c, _) -> c = Color.flip_color color
+        | Some (c, _) -> [%compare.equal: Color.t] c @@ Color.flip_color color
         | None -> true)
 
 let using_full_value point die color =
   match color with
-  | Color.White -> point = Location.point die
-  | Color.Black -> point = Location.point (25 - die)
+  | Color.White -> Location.equal point @@ (Location.point die :> Location.t)
+  | Color.Black -> Location.equal point @@ (Location.point (25 - die) :> Location.t)
 
 let no_higher_points_filled board color point =
   let higher_points = match color with
@@ -73,7 +74,10 @@ let no_higher_points_filled board color point =
     | Color.Black -> List.range ~stride:(-1) (25 - point - 1) 19 ~stop:`inclusive in
   higher_points
   |> List.map ~f:Location.point
-  |> List.for_all ~f:(fun x -> match Board.get board x with | None -> true | Some (c, _) -> c = Color.flip_color color)
+  |> List.for_all ~f:(fun x ->
+      match Board.get board x with
+      | None -> true
+      | Some (c, _) -> [%compare.equal: Color.t] c @@ Color.flip_color color)
 
 let move_legal_individual board source die color =
   let dest = Location.find_dest source die color in
@@ -86,10 +90,10 @@ let move_legal_individual board source die color =
   | `Point n as point ->
     source_ready
     && dest_ready
-    && Board.get board bar = None
-    && (dest <> `Home color || can_bear_off board color
-                               && (using_full_value point die color
-                                   || no_higher_points_filled board color (n :> int)))
+    && Option.is_none @@ Board.get board bar
+    && ((dest :> Location.t) <> `Home color || can_bear_off board color
+                                               && (using_full_value point die color
+                                                   || no_higher_points_filled board color (n :> int)))
 
 (** Perform a single move from source to dest, returning the new board. Assumes
     that move was already checked for legality. *)
@@ -131,7 +135,7 @@ let max_sequence_length board color dice = all_heights board color dice |> List.
 (* True if sequence of (die to use, piece to move) is legal, given possible
    permutations in dice. *)
 let move_legal_sequence board color dice sequence =
-  let find_tree loc trees = List.find trees ~f:(fun (Tree (l, _)) -> l = loc) in
+  let find_tree loc trees = List.find trees ~f:(fun (Tree (l, _)) -> Location.equal (l :> Location.t) loc) in
   let rec in_tree seq tree =
     match seq with
     | [] -> true
@@ -176,10 +180,10 @@ let perform_sequence game sequence =
   let aux board sequence =
     List.fold sequence ~init:board ~f:step
   in
-  if move_legal_sequence game.board game.turn (get_dice_sequences game.dice) sequence
+  if move_legal_sequence game.board game.turn (get_dice_sequences game.dice) (sequence :> (int * Location.t) list)
   then let next_state = {board = aux game.board sequence;
                          turn = Color.flip_color game.turn;
                          dice = roll_dice ()} in
-    let won = Board.get next_state.board Location.(`Home game.turn) = Some (game.turn, 15) in
+    let won = [%compare.equal: (Color.t * int) option] (Board.get next_state.board Location.(`Home game.turn)) @@ Some (game.turn, 15) in
     Ok (if won then Won game.turn else Live next_state)
   else Error "Illegal move"

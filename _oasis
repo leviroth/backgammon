@@ -9,7 +9,7 @@ Executable cli
   BuildTools: ocamlbuild
   MainIs:     cli.ml
   CompiledObject: native
-  BuildDepends: core_kernel
+  BuildDepends: base, ppx_compare, ppx_sexp_conv, stdio
   ByteOpt: -thread -ppx 'ppx-jane -as-ppx'
   NativeOpt: -thread -ppx 'ppx-jane -as-ppx'
 
@@ -18,6 +18,6 @@ Executable test
   BuildTools: ocamlbuild
   MainIs:     test.ml
   CompiledObject: native
-  BuildDepends: core_kernel, oUnit
+  BuildDepends: base, ppx_compare, ppx_sexp_conv, oUnit
   ByteOpt: -thread -ppx 'ppx-jane -as-ppx'
   NativeOpt: -thread -ppx 'ppx-jane -as-ppx'
