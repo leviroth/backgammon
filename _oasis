@@ -21,3 +21,12 @@ Executable test
   BuildDepends: base, ppx_compare, ppx_sexp_conv, oUnit
   ByteOpt: -thread -ppx 'ppx-jane -as-ppx'
   NativeOpt: -thread -ppx 'ppx-jane -as-ppx'
+
+Executable test_hist
+  Path:       src/
+  BuildTools: ocamlbuild
+  MainIs:     parse_test.ml
+  CompiledObject: native
+  BuildDepends: core, ppx_compare, ppx_sexp_conv, oUnit
+  ByteOpt: -thread -ppx 'ppx-jane -as-ppx'
+  NativeOpt: -thread -ppx 'ppx-jane -as-ppx'
