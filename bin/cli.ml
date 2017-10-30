@@ -1,4 +1,5 @@
 open Base
+open Backgammon
 let (@@) = Caml.(@@)
 
 let quadrants color =
