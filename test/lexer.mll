@@ -23,6 +23,8 @@ rule read =
   | white                                   { read lexbuf }
   | newline                                 { next_line lexbuf; read lexbuf }
   | ';'                                     { comment lexbuf }
+  | "Doubles => " (digits as d)             { DOUBLE (int_of_string d) }
+  | "Takes"                                 { TAKE }
   | (digits as d1) '/' (digits as d2) '*'?  { PLAY (int_of_string d1, int_of_string d2) }
   | (digit as d1) (digit as d2) ':'         { DICE (convert_char d1, convert_char d2) }
   | (digits as d) ')'                       { TURN (int_of_string d) }

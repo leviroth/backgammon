@@ -1,0 +1,10 @@
+(jbuild_version 1)
+
+(executables
+ ((names (parse_test test))
+  (libraries (backgammon core_kernel oUnit))
+  (preprocess (pps (ppx_jane)))))
+
+(ocamllex (lexer))
+
+(menhir ((modules (parser))))

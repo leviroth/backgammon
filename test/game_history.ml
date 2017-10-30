@@ -1,3 +1,5 @@
+open Backgammon
+
 type play = Location.source * Location.dest
 
 type turn = {dice: int * int;

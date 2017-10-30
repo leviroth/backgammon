@@ -1,0 +1,7 @@
+(jbuild_version 1)
+
+(library
+ ((name backgammon)
+  (libraries (base))
+  (preprocess (pps (ppx_jane)))))
+
