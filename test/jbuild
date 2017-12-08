@@ -1,10 +1,15 @@
 (jbuild_version 1)
 
 (executables
- ((names (parse_test test))
+ ((names (test))
   (libraries (backgammon core_kernel oUnit))
   (preprocess (pps (ppx_jane)))))
 
 (ocamllex (lexer))
 
 (menhir ((modules (parser))))
+
+(alias
+ ((name    runtest)
+  (deps    (test.exe))
+  (action  (run ${<}))))
