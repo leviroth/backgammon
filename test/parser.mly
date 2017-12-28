@@ -51,10 +51,7 @@ lines:
 
 line:
 | TURN; m1 = move; { Option.to_list @@ build_move (m1, Color.Black) }
-| TURN; m1 = move; m2 = move; {let moves = [m1; m2] in
-                               let colors = [Color.White; Color.Black] in
-                               List.zip_exn moves colors
-                               |> List.filter_map ~f:build_move }
+| TURN; m1 = move; m2 = move; {List.filter_map [m1, Color.White; m2, Color.Black] ~f:build_move }
 
 move:
 | d = DICE; p = PLAY*; { Some (d, p) }
