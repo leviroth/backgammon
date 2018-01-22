@@ -3,9 +3,11 @@ open Base
 type live_game = {board : Board.t;
                   dice : int * int;
                   turn : Color.t}
+[@@deriving sexp]
 
 type t = | Live of live_game
          | Won of Color.t
+[@@deriving sexp]
 
 let is_live t = match t with | Live _ -> true
                              | Won _ -> false
@@ -111,7 +113,7 @@ let legal_uses board color die =
   List.filter sources ~f:(fun source ->
       move_legal_individual board source die color)
 
-type move_tree = Tree of Location.source * move_tree list
+type move_tree = Tree of Location.source * int * move_tree list [@@deriving sexp_of]
 
 (** Construct a tree of possible moves, given a list of dice. Must be pruned for
     under-use of available dice. *)
@@ -120,13 +122,16 @@ let rec legal_use_tree board color dice : move_tree list =
   match dice with
   | [] -> []
   | hd::tl -> legal_uses board color hd
-              |> List.map ~f:(fun move -> Tree (move, legal_use_tree (next_board move hd) color tl))
+              |> List.map ~f:(fun move -> Tree (move, hd, legal_use_tree (next_board move hd) color tl))
+
+let all_trees board color dice_orders =
+  List.concat_map dice_orders ~f:(legal_use_tree board color)
 
 (** Find the maximum height of a list of trees; in other words, the maximum
     number of moves possible. *)
 let rec tree_height = function
   | [] -> 0
-  | Tree(_, rest) :: tl -> max (1 + tree_height rest) (tree_height tl)
+  | Tree(_, _, rest) :: tl -> max (1 + tree_height rest) (tree_height tl)
 
 let all_heights board color dice = List.map dice ~f:(fun x -> x |> legal_use_tree board color |> tree_height)
 let max_sequence_length board color dice = all_heights board color dice |> List.max_elt ~cmp:compare |> Option.value_exn
@@ -134,13 +139,13 @@ let max_sequence_length board color dice = all_heights board color dice |> List.
 (* True if sequence of (die to use, piece to move) is legal, given possible
    permutations in dice. *)
 let move_legal_sequence board color dice sequence =
-  let find_tree loc trees = List.find trees ~f:(fun (Tree (l, _)) -> Location.equal (l :> Location.t) loc) in
+  let find_tree loc trees = List.find trees ~f:(fun (Tree (l, _, _)) -> Location.equal (l :> Location.t) loc) in
   let rec in_tree seq tree =
     match seq with
     | [] -> true
     | hd::tl -> match find_tree hd tree with
       | None -> false
-      | Some Tree(_, rest) -> in_tree tl rest
+      | Some Tree(_, _, rest) -> in_tree tl rest
   in let steps = (List.map sequence ~f:snd) in
   match List.find dice ~f:(List.is_prefix ~prefix:steps ~equal:(=)) with
   | None -> false
