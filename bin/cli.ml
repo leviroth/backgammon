@@ -110,7 +110,7 @@ let play_game () =
           output_string stdout "Enter die: ";
           flush stdout;
           let die = read_int_safe () in
-          (die, location))
+          (location, die))
       in
       let result = Game.perform_sequence g sequence in
       match result with

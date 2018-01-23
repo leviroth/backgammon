@@ -141,13 +141,13 @@ let move_legal_sequence board color dice sequence =
     | hd::tl -> match find_tree hd tree with
       | None -> false
       | Some Tree(_, rest) -> in_tree tl rest
-  in let steps = (List.map sequence ~f:fst) in
+  in let steps = (List.map sequence ~f:snd) in
   match List.find dice ~f:(List.is_prefix ~prefix:steps ~equal:(=)) with
   | None -> false
   | Some active_dice_sequence ->
     let tree = legal_use_tree board color active_dice_sequence in
     (* Sequence must only use the dice available, of course. *)
-    in_tree (List.map sequence ~f:snd) tree
+    in_tree (List.map sequence ~f:fst) tree
     (* Sequence must use maximum possible number of dice. *)
     && List.length sequence = (max_sequence_length board color dice)
     (* Sequence must use greater of two dice where possible. *)
@@ -175,11 +175,11 @@ let required_steps game = max_sequence_length game.board game.turn @@ get_dice_s
 
 let perform_sequence game sequence =
   let color = game.turn in
-  let step b (die, start) = single_move_unsafe b start (Location.find_dest start die color) in
+  let step b (start, die) = single_move_unsafe b start (Location.find_dest start die color) in
   let aux board sequence =
     List.fold sequence ~init:board ~f:step
   in
-  if move_legal_sequence game.board game.turn (get_dice_sequences game.dice) (sequence :> (int * Location.t) list)
+  if move_legal_sequence game.board game.turn (get_dice_sequences game.dice) (sequence :> (Location.t * int) list)
   then let next_state = {board = aux game.board sequence;
                          turn = Color.flip_color game.turn;
                          dice = roll_dice ()} in

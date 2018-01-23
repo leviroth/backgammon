@@ -31,14 +31,14 @@ let legal_moves l =
     let raw_plays = List.map plays ~f:(fun (source, dest) -> (distance source dest, source)) in
     List.map raw_plays ~f:(fun (i, p) ->
         if (List.mem !remaining_dice i ~equal:Int.equal)
-        then (remaining_dice := drop !remaining_dice i; (i, p))
-        else let n = List.hd_exn !remaining_dice in remaining_dice := List.tl_exn !remaining_dice; (n, p))
+        then (remaining_dice := drop !remaining_dice i; (p, i))
+        else let n = List.hd_exn !remaining_dice in remaining_dice := List.tl_exn !remaining_dice; (p, n))
   in
   let aux board (turn, move) =
-    let step b (die, start) = Game.single_move_unsafe b start (Location.find_dest start die turn) in
+    let step b (start, die) = Game.single_move_unsafe b start (Location.find_dest start die turn) in
     let sequences = Game.get_dice_sequences move.dice in
     let converted_plays = convert_plays (List.hd_exn sequences) move.plays in
-    match Game.move_legal_sequence board turn sequences @@ (converted_plays :> (int * Location.t) list) with
+    match Game.move_legal_sequence board turn sequences @@ (converted_plays :> (Location.t * int) list) with
     | false -> Error move
     | true -> Ok (List.fold converted_plays ~init:board ~f:step)
   in List.fold_result ~init:(Game.starting_board) ~f:aux l

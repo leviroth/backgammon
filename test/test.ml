@@ -26,15 +26,15 @@ let test_sequence_legality _ =
   let stripped_board_3 = Board.put stripped_board_2 ~location:(Location.point 6) ~contents:(Some (Black, 1)) in
   let stripped_board_4 = (Board.put stripped_board ~location:(Location.point 1) ~contents:None) in
   List.iter ~f:(assert_bool "test_sequence_legality") [
-    move_legal_sequence starting_board White [[5; 3]; [3; 5]] [(3, Location.point 24); (5, Location.point 13)];
-    not @@ move_legal_sequence starting_board White [[5; 3]; [3; 5]] [(3, Location.point 24); (5, Location.point 11)];
-    not @@ move_legal_sequence starting_board White [[5; 3]; [3; 5]] [(3, Location.point 24)];
-    not @@ move_legal_sequence stripped_board White [[1; 2]; [2; 1]] [(1, Location.point 4)];
-    move_legal_sequence stripped_board White [[1; 2]; [2; 1]] [(2, Location.point 4)];
-    move_legal_sequence stripped_board_2 White [[1; 6]; [6; 1]] [(1, Location.point 6); (6, Location.point 5)];
-    not @@ move_legal_sequence stripped_board_2 White [[1; 6]; [6; 1]] [(6, Location.point 5); (1, Location.point 6)];
-    move_legal_sequence stripped_board_3 White [[1; 6]; [6; 1]] [(1, Location.point 5); (6, Location.point 4)];
-    not @@ move_legal_sequence stripped_board_4 White [[1; 2]; [2; 1]] [(2, Location.point 4)]]
+    move_legal_sequence starting_board White [[5; 3]; [3; 5]] [(Location.point 24, 3); (Location.point 13, 5)];
+    not @@ move_legal_sequence starting_board White [[5; 3]; [3; 5]] [(Location.point 24, 3); (Location.point 11, 5)];
+    not @@ move_legal_sequence starting_board White [[5; 3]; [3; 5]] [(Location.point 24, 3)];
+    not @@ move_legal_sequence stripped_board White [[1; 2]; [2; 1]] [(Location.point 4, 1)];
+    move_legal_sequence stripped_board White [[1; 2]; [2; 1]] [(Location.point 4, 2)];
+    move_legal_sequence stripped_board_2 White [[1; 6]; [6; 1]] [(Location.point 6, 1); (Location.point 5, 6)];
+    not @@ move_legal_sequence stripped_board_2 White [[1; 6]; [6; 1]] [(Location.point 5, 6); (Location.point 6, 1)];
+    move_legal_sequence stripped_board_3 White [[1; 6]; [6; 1]] [(Location.point 5, 1); (Location.point 4, 6)];
+    not @@ move_legal_sequence stripped_board_4 White [[1; 2]; [2; 1]] [(Location.point 4, 2)]]
 
 let test_sample_games _ = Parse_test.process_directory "test/sample_games"
 
