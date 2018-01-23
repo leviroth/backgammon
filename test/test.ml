@@ -2,7 +2,6 @@ open Base
 open OUnit2
 open Backgammon
 open Color
-let (@@) = Caml.(@@)
 
 let construct_board l =
   List.fold

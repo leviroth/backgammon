@@ -1,6 +1,5 @@
 open Base
 open Backgammon
-let (@@) = Caml.(@@)
 
 let quadrants color =
   let left_range, right_range = match color with | Color.Black -> (List.range 13 19,
