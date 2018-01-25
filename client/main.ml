@@ -12,7 +12,7 @@ let send_on_protocol socket protocol_message =
     protocol_message
     |> [%sexp_of: Protocol.t]
     |> Core_kernel.Sexp.to_string
-    |> Js.string
+    |> (fun s -> log_string @@ Printf.sprintf "sending %s" s; Js.string s)
   in
   socket##send(s)
 
@@ -28,7 +28,6 @@ type clickable =
 let source_equal = (Location.equal :> Location.source -> Location.source -> bool)
 
 let clickables half_move trees color =
-  log_string @@ Sexp.to_string @@ [%sexp_of: Game.move_tree list] trees;
   match half_move with
   | None ->
     Choose_source (List.fold trees
@@ -150,6 +149,12 @@ let view model =
   match model.game_state with
   | Won c -> div [text "game over"]
   | Live {board; dice; turn} ->
+    let intermediate_board color board (source, die) =
+      let open Game in
+      let dest = Location.find_dest source die color in
+      single_move_unsafe board source dest
+    in
+    let board = List.fold model.pending_move ~init:board ~f:(intermediate_board turn) in
     let consumed_dice = List.rev_map model.pending_move ~f:snd in
     let sequences =
       dice
@@ -157,7 +162,6 @@ let view model =
       |> fun sequences -> sequences_after_dice sequences consumed_dice
     in
     let trees = Game.all_trees board turn sequences in
-    if List.is_empty trees then send_on_protocol model.socket Protocol.Request_state;
     let clickables = clickables model.selected_source trees turn in
     let row board side source pending =
       let range, color =
@@ -176,7 +180,7 @@ let view model =
       (* List.map Color.[White; Black] ~f:(fun color -> home board color clickables); *)
       [text @@ Printf.sprintf "Dice: %d %d" (fst dice) (snd dice)]]
 
-let init socket = 
+let init socket =
   {game_state = Game.(Live {board = starting_board;
                             dice = initial_roll ();
                             turn = Color.White});
@@ -193,25 +197,14 @@ let update m a =
      | Won _ -> m
      | Live g ->
        let pending_move = (source, die) :: m.pending_move in
-       log_string @@ Sexp.to_string @@ [%sexp_of: (Location.source * int) list] pending_move;
-       if List.length pending_move = required_steps g 
+       if List.length pending_move = required_steps g
        then send_moves m.socket @@ List.rev pending_move;
-       let new_board = 
-         let dest = Location.find_dest source die g.turn in
-         single_move_unsafe g.board source dest
-       in
-       {m with pending_move; 
-               selected_source = None;
-               game_state = Live {g with board = new_board}})
+       {m with pending_move;
+               selected_source = None;})
   | Select_source s ->
     {m with selected_source = Some s}
   | Update state ->
-    let open Game in
-    (match state with
-     | Won _ -> m
-     | Live g ->
-       if required_steps g = 0 then send_moves m.socket @@ [];
-       {m with game_state = state; selected_source = None; pending_move = []})
+    Game.{m with game_state = state; selected_source = None; pending_move = []}
 
 
 let app socket = simple_app ~init:(init socket) ~view ~update ()
@@ -226,10 +219,10 @@ let run () =
   socket##.onmessage := Dom.handler (fun message_event ->
       let state_string = Js.to_string message_event##.data in
       log_string state_string;
-      let result = 
-        state_string 
-        |> sexpify 
-        |> [%of_sexp: (Game.t, string) Result.t] 
+      let result =
+        state_string
+        |> sexpify
+        |> [%of_sexp: (Game.t, string) Result.t]
       in
       match result with
       | Error s -> log_string s; Js.bool false

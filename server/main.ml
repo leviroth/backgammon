@@ -10,16 +10,16 @@ module Secrets = struct
 
   type t = int Color_map.t
 
-  let generate () = 
-    Color_map.of_alist_exn 
-      [Color.White, Random.bits (); 
+  let generate () =
+    Color_map.of_alist_exn
+      [Color.White, Random.bits ();
        Color.Black, Random.bits ()]
 end
 
 module Game = struct
   type t = Backgammon.Game.t
 
-  let convert_sequence sequence = 
+  let convert_sequence sequence =
     let sequence = List.map sequence ~f:(fun (loc, i) ->
         match loc with
         | `Point _ | `Bar _ as source -> Some (source, i)
@@ -44,7 +44,7 @@ let handle_protocol ~game =
   | Request_state -> Ok !game
   | Move l ->
     Result.map
-    (match !game with 
+    (match !game with
      | Backgammon.Game.Won _ -> Error "game is over"
      | Backgammon.Game.Live state -> Game.process state l)
     ~f:(fun state -> game := state; !game)
@@ -57,7 +57,6 @@ let process_string ~game s =
   |> Sexp.to_string
 
 let string_of_game = Fn.compose Sexp.to_string [%sexp_of: Backgammon.Game.t]
-    
 
 let handle_client ~game addr reader writer =
   let game = match game with
@@ -125,10 +124,10 @@ let command =
   in
   let run board () =
     let game = Option.map board ~f:(fun filename ->
-        filename 
-        |> Stdio.In_channel.read_all 
-        |> Sexp.of_string 
-        |> [%of_sexp: Backgammon.Game.t]) 
+        filename
+        |> Stdio.In_channel.read_all
+        |> Sexp.of_string
+        |> [%of_sexp: Backgammon.Game.t])
     in
     let port = 3000 in
     Tcp.(Server.create
