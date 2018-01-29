@@ -111,6 +111,11 @@ let bar board color clickables =
     ~a:(this_onclick @ [class_ "bar"; attr "id" (Printf.sprintf "bar-%s" color_name)])
     [represent_stack pieces location]
 
+let string_of_color =
+  function
+  | Color.Black -> "black"
+  | Color.White -> "white"
+
 let home board color clickables =
   let location = Location.(`Home color) in
   let pieces = Board.get board Location.(`Home color) in
@@ -129,7 +134,7 @@ let home board color clickables =
        | None -> [])
     | Choose_source _ -> []
   in
-  let color_name = match color with | Color.Black -> "black" | Color.White -> "white" in
+  let color_name = string_of_color color in
   div
     ~a:(this_onclick @ [this_class; attr "id" (Printf.sprintf "home-%s" color_name)])
     [represent_stack pieces location]
@@ -147,7 +152,7 @@ let sequences_after_dice sequences dice =
 
 let view model =
   match model.game_state with
-  | Won c -> div [text "game over"]
+  | Won c -> div [text @@ Printf.sprintf "Game over - %s won" @@ string_of_color c]
   | Live {board; dice; turn} ->
     let intermediate_board color board (source, die) =
       let open Game in
