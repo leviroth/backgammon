@@ -85,10 +85,6 @@ let process_string ~game s =
 let string_of_game = Fn.compose Sexp.to_string [%sexp_of: Backgammon.Game.t]
 
 let handle_client ~game addr reader writer =
-  let game = match game with
-    | None -> ref @@ Backgammon.Game.make_starting_state ()
-    | Some g -> ref g
-  in
   let addr_str = Socket.Address.(to_string addr) in
   info "Client connection from %s" addr_str;
   let app_to_ws, sender_write = Pipe.create () in
@@ -149,11 +145,16 @@ let command =
     +> flag "-board" (optional string) ~doc:"starting board file"
   in
   let run board () =
-    let game = Option.map board ~f:(fun filename ->
+    let game_state = Option.map board ~f:(fun filename ->
         filename
         |> Stdio.In_channel.read_all
         |> Sexp.of_string
         |> [%of_sexp: Backgammon.Game.t])
+    in
+    let game =
+      match game_state with
+      | Some state -> ref state
+      | None -> ref @@ Backgammon.Game.make_starting_state ()
     in
     let port = 3000 in
     Tcp.(Server.create
