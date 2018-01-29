@@ -10,7 +10,7 @@ let log_string s =
 let send_on_protocol socket protocol_message =
   let s =
     protocol_message
-    |> [%sexp_of: Protocol.t]
+    |> [%sexp_of: Protocol.client_message]
     |> Core_kernel.Sexp.to_string
     |> (fun s -> log_string @@ Printf.sprintf "sending %s" s; Js.string s)
   in
@@ -46,12 +46,14 @@ type model =
    color : Color.t;
    pending_move : (Location.source * int) list;
    selected_source : Location.source option;
+   messages : string list;
    socket : Js_of_ocaml.WebSockets.webSocket Js_of_ocaml.Js.t}
 
 type action =
   | Prepare_move of Location.source * int
   | Select_source of Location.source
   | Update of Game.t
+  | Message of string
 
 let class_multi l = class_ @@ String.concat ~sep:" " l
 
@@ -183,7 +185,9 @@ let view model =
           div ~a:[class_multi ["row"; side_name]] @@ row board side model.selected_source model.pending_move);
       List.map Color.[White; Black] ~f:(fun color -> bar board color clickables);
       (* List.map Color.[White; Black] ~f:(fun color -> home board color clickables); *)
-      [text @@ Printf.sprintf "Dice: %d %d" (fst dice) (snd dice)]]
+      [text @@ Printf.sprintf "Dice: %d %d" (fst dice) (snd dice)];
+      List.map model.messages ~f:(fun message -> div [text message])
+    ]
 
 let init socket =
   {game_state = Game.(Live {board = starting_board;
@@ -192,6 +196,7 @@ let init socket =
    color = Color.White;
    pending_move = [];
    selected_source = None;
+   messages = [];
    socket;}
 
 let update m a =
@@ -209,7 +214,9 @@ let update m a =
   | Select_source s ->
     {m with selected_source = Some s}
   | Update state ->
-    Game.{m with game_state = state; selected_source = None; pending_move = []}
+    {m with game_state = state; selected_source = None; pending_move = []}
+  | Message message ->
+    {m with messages = message :: m.messages}
 
 
 let app socket = simple_app ~init:(init socket) ~view ~update ()
@@ -227,12 +234,21 @@ let run () =
       let result =
         state_string
         |> sexpify
-        |> [%of_sexp: (Game.t, string) Result.t]
+        |> [%of_sexp: Protocol.server_message list]
       in
-      match result with
-      | Error s -> log_string s; Js.bool false
-      | Ok state -> Vdom_blit.process app_instance (Update state); Js.bool false);
+      List.iter result ~f:(function
+          | Error_message s -> log_string s
+          | Update_state state -> Vdom_blit.process app_instance (Update state)
+          | Unusable_dice (player, (d1, d2)) ->
+            let message =
+              Printf.sprintf "%s rolled the unusable dice (%d, %d)"
+                (string_of_color player)
+                d1 d2
+            in
+            Vdom_blit.process app_instance (Message message)
+        ); Js.bool false
+    );
   socket##.onopen := Dom.handler (fun _ -> send_on_protocol socket Protocol.Request_state; Js.bool false)
 
-let () =
+     let () =
   Js_browser.Window.set_onload Js_browser.window run

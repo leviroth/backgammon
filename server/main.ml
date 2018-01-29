@@ -27,33 +27,59 @@ module Game = struct
     in
     Option.all sequence
 
-  let process state l =
-    match convert_sequence l with
-    | Some sequence -> Backgammon.Game.perform_sequence state sequence
-    | None -> Error "Not a valid sequence"
+  let handle_unusable_dice state =
+    let rec aux state acc =
+    let open Backgammon.Game in
+    match state with
+    | Won _ -> state, []
+    | Live g ->
+      if required_steps g = 0 then
+        (aux
+           (Result.ok_or_failwith @@ Backgammon.Game.perform_sequence g [])
+           (Backgammon.Protocol.Unusable_dice (g.turn, g.dice) :: acc))
+      else state, List.rev acc
+    in
+    let state, messages = aux state [] in
+    state, messages
+
+  let apply_sequence state l =
+    let open Result.Let_syntax in
+    let%map result =
+      match convert_sequence l with
+      | Some sequence -> Backgammon.Game.perform_sequence state sequence
+      | None -> Error "Not a valid sequence"
+    in
+    handle_unusable_dice result
 end
 
 let protocol_of_string s =
-  match s |> Sexp.of_string |> Backgammon.Protocol.t_of_sexp with
+  match s |> Sexp.of_string |> Backgammon.Protocol.client_message_of_sexp with
   | sexp -> Ok sexp
   | exception _ -> Error "invalid sexp"
 
 let handle_protocol ~game =
   let open Backgammon.Protocol in
   function
-  | Request_state -> Ok !game
+  | Request_state -> [Update_state !game]
   | Move l ->
-    Result.map
     (match !game with
-     | Backgammon.Game.Won _ -> Error "game is over"
-     | Backgammon.Game.Live state -> Game.process state l)
-    ~f:(fun state -> game := state; !game)
+    | Backgammon.Game.Won _ -> [Error_message "Game is over"]
+    | Backgammon.Game.Live state ->
+      (match Game.apply_sequence state l with
+       | Error s -> [Error_message s]
+       | Ok (state, messages) -> game := state; Update_state state :: messages))
 
 let process_string ~game s =
-  let open Result in
-  protocol_of_string s >>=
-  handle_protocol ~game
-  |> [%sexp_of: (Backgammon.Game.t, string) Result.t]
+  let open Result.Let_syntax in
+  let open Backgammon.Protocol in
+  let result =
+    let%map protocol = protocol_of_string s in
+    handle_protocol ~game protocol
+  in
+  (match result with
+   | Ok state -> state
+   | Error message -> [Error_message message])
+  |> [%sexp_of: server_message list]
   |> Sexp.to_string
 
 let string_of_game = Fn.compose Sexp.to_string [%sexp_of: Backgammon.Game.t]
