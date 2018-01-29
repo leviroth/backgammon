@@ -84,17 +84,19 @@ let process_string ~game s =
 
 let string_of_game = Fn.compose Sexp.to_string [%sexp_of: Backgammon.Game.t]
 
-let handle_client ~game addr reader writer =
+let handle_client ~game ~pipes addr reader writer =
   let addr_str = Socket.Address.(to_string addr) in
   info "Client connection from %s" addr_str;
   let app_to_ws, sender_write = Pipe.create () in
   let receiver_read, ws_to_app = Pipe.create () in
+  let messages_in, messages_out = Pipe.create () in
+  pipes := messages_out :: !pipes;
   let check_request req =
     let req_str = Format.asprintf "%a" Cohttp.Request.pp_hum req in
     info "Incoming connnection request: %s" req_str ;
     Deferred.return (Cohttp.Request.(uri req |> Uri.path) = "/ws")
   in
-  let rec loop () =
+  let rec loop1 () =
     Pipe.read receiver_read >>= function
     | `Eof ->
       info "Client %s disconnected" addr_str;
@@ -123,10 +125,17 @@ let handle_client ~game addr reader writer =
           Deferred.unit
         | Some frame' ->
           debug "-> %s" (show frame');
-          Pipe.write sender_write frame'
+          ignore @@ Pipe.write sender_write frame';
+          Deferred.List.iter !pipes ~f:(fun pipe -> Pipe.write pipe frame')
       end >>= fun () ->
       if closed then Deferred.unit
-      else loop ()
+      else loop1 ()
+  in
+  let rec loop2 () =
+    Pipe.read messages_in >>= function
+    | `Eof -> Deferred.unit
+    | `Ok s -> Pipe.write sender_write s >>= fun () ->
+      loop2 ()
   in
   Deferred.any [
     begin W.server ~log:Lazy.(force log)
@@ -135,7 +144,8 @@ let handle_client ~game addr reader writer =
       | Error err -> Error.raise err
       | Ok () -> Deferred.unit
     end ;
-    loop () ;
+    loop1 () ;
+    loop2 () ;
   ]
 
 let command =
@@ -156,10 +166,11 @@ let command =
       | Some state -> ref state
       | None -> ref @@ Backgammon.Game.make_starting_state ()
     in
+    let pipes = ref [] in
     let port = 3000 in
     Tcp.(Server.create
            ~on_handler_error:`Ignore
-           Where_to_listen.(of_port port) (handle_client ~game)) >>=
+           Where_to_listen.(of_port port) (handle_client ~game ~pipes)) >>=
     Tcp.Server.close_finished
   in
   Command.async_spec ~summary:"Backgammon server" spec run
