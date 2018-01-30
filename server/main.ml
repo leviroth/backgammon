@@ -16,6 +16,18 @@ module Secrets = struct
        Color.Black, Random.bits ()]
 end
 
+module Pipe_manager = struct
+  type t = {mutable counter : int;
+            mutable pipes : W.Frame.t Pipe.Writer.t Int.Map.t}
+  let create () = {counter = -1; pipes = Int.Map.empty}
+  let add t pipe =
+    t.counter <- t.counter + 1;
+    t.pipes <- Int.Map.set t.pipes ~key:t.counter ~data:pipe;
+    t.counter
+  let remove t id =
+    t.pipes <- Int.Map.remove t.pipes id
+end
+
 module Game = struct
   type t = Backgammon.Game.t
 
@@ -84,58 +96,59 @@ let process_string ~game s =
 
 let string_of_game = Fn.compose Sexp.to_string [%sexp_of: Backgammon.Game.t]
 
+type message =
+  | Response of W.Frame.t
+  | Broadcast of W.Frame.t
+
 let handle_client ~game ~pipes addr reader writer =
   let addr_str = Socket.Address.(to_string addr) in
   info "Client connection from %s" addr_str;
   let app_to_ws, sender_write = Pipe.create () in
   let receiver_read, ws_to_app = Pipe.create () in
-  let messages_in, messages_out = Pipe.create () in
-  pipes := messages_out :: !pipes;
+  let pipe_id = Pipe_manager.add pipes sender_write in
   let check_request req =
     let req_str = Format.asprintf "%a" Cohttp.Request.pp_hum req in
     info "Incoming connnection request: %s" req_str ;
     Deferred.return (Cohttp.Request.(uri req |> Uri.path) = "/ws")
   in
-  let rec loop1 () =
+  let rec loop () =
     Pipe.read receiver_read >>= function
     | `Eof ->
       info "Client %s disconnected" addr_str;
+      Pipe_manager.remove pipes pipe_id;
       Deferred.unit
     | `Ok ({ W.Frame.opcode; extension; final; content } as frame) ->
       let open W.Frame in
       debug "<- %s" W.Frame.(show frame);
       let frame', closed =
         match opcode with
-        | Opcode.Ping -> Some (create ~opcode:Opcode.Pong ~content ()), false
+        | Opcode.Ping -> Some (Response (create ~opcode:Opcode.Pong ~content ())), false
         | Opcode.Close ->
           (* Immediately echo and pass this last message to the user *)
+          Pipe_manager.remove pipes pipe_id;
           if String.length content >= 2 then
-            Some (create ~opcode:Opcode.Close
-                          ~content:(String.sub content 0 2) ()), true
+            Some (Response (create ~opcode:Opcode.Close
+                              ~content:(String.sub content 0 2) ())), true
           else
-          Some (close 100), true
+          Some (Response (close 100)), true
         | Opcode.Pong -> None, false
         | Opcode.Text
-        | Opcode.Binary -> Some {frame with content = process_string game content}, false
-        | _ -> Some (close 1002), false
+        | Opcode.Binary -> Some (Broadcast {frame with content = process_string game content}), false
+        | _ -> Some (Response (close 1002)), false
       in
+      print_endline @@ Sexp.to_string @@ [%sexp_of: int list] @@ Int.Map.keys pipes.pipes;
       begin
         match frame' with
         | None ->
           Deferred.unit
-        | Some frame' ->
+        | Some (Response frame') ->
           debug "-> %s" (show frame');
-          ignore @@ Pipe.write sender_write frame';
-          Deferred.List.iter !pipes ~f:(fun pipe -> Pipe.write pipe frame')
+          Pipe.write_if_open sender_write frame'
+        | Some (Broadcast frame') ->
+          Deferred.List.iter ~f:(fun pipe -> Pipe.write_if_open pipe frame') @@ Int.Map.data pipes.pipes
       end >>= fun () ->
       if closed then Deferred.unit
-      else loop1 ()
-  in
-  let rec loop2 () =
-    Pipe.read messages_in >>= function
-    | `Eof -> Deferred.unit
-    | `Ok s -> Pipe.write sender_write s >>= fun () ->
-      loop2 ()
+      else loop ()
   in
   Deferred.any [
     begin W.server ~log:Lazy.(force log)
@@ -144,8 +157,7 @@ let handle_client ~game ~pipes addr reader writer =
       | Error err -> Error.raise err
       | Ok () -> Deferred.unit
     end ;
-    loop1 () ;
-    loop2 () ;
+    loop () ;
   ]
 
 let command =
@@ -153,8 +165,15 @@ let command =
     let open Command.Spec in
     empty
     +> flag "-board" (optional string) ~doc:"starting board file"
+    +> flag "-loglevel" (optional int) ~doc:"1-3 loglevel"
   in
-  let run board () =
+  let set_loglevel = function
+    | 2 -> set_level `Info
+    | 3 -> set_level `Debug
+    | _ -> ()
+  in
+  let run board loglevel () =
+    Option.iter loglevel ~f:set_loglevel;
     let game_state = Option.map board ~f:(fun filename ->
         filename
         |> Stdio.In_channel.read_all
@@ -166,7 +185,7 @@ let command =
       | Some state -> ref state
       | None -> ref @@ Backgammon.Game.make_starting_state ()
     in
-    let pipes = ref [] in
+    let pipes = Pipe_manager.create () in
     let port = 3000 in
     Tcp.(Server.create
            ~on_handler_error:`Ignore
