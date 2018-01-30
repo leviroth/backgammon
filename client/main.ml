@@ -222,7 +222,9 @@ let update m a =
 let app socket = simple_app ~init:(init socket) ~view ~update ()
 
 let run () =
-  let url = Js_of_ocaml.Js.string "ws://localhost:3000/ws" in
+  let hostname = Js_browser.(Location.hostname @@ Window.location window) in
+  let url_string = Printf.sprintf "ws://%s:3000/ws" hostname in
+  let url = Js_of_ocaml.Js.string url_string in
   let socket = new%js Js_of_ocaml.WebSockets.webSocket url in
   let app_instance = Vdom_blit.run @@ app socket in
   app_instance
