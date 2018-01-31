@@ -16,8 +16,8 @@ let send_on_protocol socket protocol_message =
   in
   socket##send(s)
 
-let send_moves socket moves =
-  send_on_protocol socket @@ Protocol.Move (moves :> (Location.t * int) list)
+let send_moves socket color secret moves =
+  send_on_protocol socket @@ Protocol.Move (color, secret, (moves :> (Location.t * int) list))
 
 let sexpify = Core_kernel.Sexp.of_string
 
@@ -43,14 +43,17 @@ let clickables half_move trees color =
 
 type model =
   {game_state : Game.t;
-   color : Color.t;
+   color : Color.t option;
+   secret : int option;
    pending_move : (Location.source * int) list;
    selected_source : Location.source option;
    messages : string list;
    socket : Js_of_ocaml.WebSockets.webSocket Js_of_ocaml.Js.t}
 
 type action =
+  | Get_color_secret of Color.t
   | Prepare_move of Location.source * int
+  | Set_color_secret of Color.t * int
   | Select_source of Location.source
   | Update of Game.t
   | Message of string
@@ -152,10 +155,20 @@ let sequences_after_die sequences die =
 let sequences_after_dice sequences dice =
   List.fold dice ~init:sequences ~f:sequences_after_die
 
+let button txt msg = input [] ~a:[onclick (fun _ -> msg); type_button; value txt]
+
+let select_color_button color = button (string_of_color color) (Get_color_secret color)
+
 let view model =
   match model.game_state with
   | Won c -> div [text @@ Printf.sprintf "Game over - %s won" @@ string_of_color c]
   | Live {board; dice; turn} ->
+    let color_info =
+      (match model.color with
+       | Some c -> div [text @@ Printf.sprintf "Color: %s" @@ string_of_color c]
+       | None -> div [select_color_button Color.White;
+                      select_color_button Color.Black])
+    in
     let intermediate_board color board (source, die) =
       let open Game in
       let dest = Location.find_dest source die color in
@@ -186,37 +199,43 @@ let view model =
       List.map Color.[White; Black] ~f:(fun color -> bar board color clickables);
       (* List.map Color.[White; Black] ~f:(fun color -> home board color clickables); *)
       [text @@ Printf.sprintf "Dice: %d %d" (fst dice) (snd dice)];
-      List.map model.messages ~f:(fun message -> div [text message])
+      List.map model.messages ~f:(fun message -> div [text message]);
+      [color_info]
     ]
 
 let init socket =
   {game_state = Game.(Live {board = starting_board;
                             dice = initial_roll ();
                             turn = Color.White});
-   color = Color.White;
+   color = None;
+   secret = None;
    pending_move = [];
    selected_source = None;
    messages = [];
    socket;}
 
 let update m a =
-  match a with
-  | Prepare_move (source, die) ->
+  match m, a with
+  | _, Get_color_secret c -> send_on_protocol m.socket @@ Protocol.Request_color c; m
+  | _, Set_color_secret (color, secret) -> {m with color = Some color;
+                                                   secret = Some secret;}
+  | {color = Some c; secret = Some s}, Prepare_move (source, die) ->
     let open Game in
     (match m.game_state with
      | Won _ -> m
      | Live g ->
        let pending_move = (source, die) :: m.pending_move in
        if List.length pending_move = required_steps g
-       then send_moves m.socket @@ List.rev pending_move;
+       then send_moves m.socket c s @@ List.rev pending_move;
        {m with pending_move;
                selected_source = None;})
-  | Select_source s ->
+  | _, Select_source s ->
     {m with selected_source = Some s}
-  | Update state ->
+  | _, Update state ->
     {m with game_state = state; selected_source = None; pending_move = []}
-  | Message message ->
+  | _, Message message ->
     {m with messages = message :: m.messages}
+  | _, _ -> m
 
 
 let app socket = simple_app ~init:(init socket) ~view ~update ()
@@ -239,8 +258,11 @@ let run () =
         |> [%of_sexp: Protocol.server_message list]
       in
       List.iter result ~f:(function
+          | Send_color_secret (c, s) ->
+            Vdom_blit.process app_instance (Set_color_secret (c, s))
           | Error_message s -> log_string s
-          | Update_state state -> Vdom_blit.process app_instance (Update state)
+          | Update_state state ->
+            Vdom_blit.process app_instance (Update state)
           | Unusable_dice (player, (d1, d2)) ->
             let message =
               Printf.sprintf "%s rolled the unusable dice (%d, %d)"

@@ -4,16 +4,33 @@ open Log.Global
 
 module W = Websocket_async
 
+type message =
+  | Response of Backgammon.Protocol.server_message
+  | Broadcast of Backgammon.Protocol.server_message
+
 module Secrets = struct
   open Backgammon
   module Color_map = Map.Make(Color)
 
-  type t = int Color_map.t
+  type secret_info = {secret : int; mutable distributed : bool}
+
+  type t = secret_info Color_map.t
 
   let generate () =
+    let gen_info () =
+      {secret = Random.bits (); distributed = false}
+    in
     Color_map.of_alist_exn
-      [Color.White, Random.bits ();
-       Color.Black, Random.bits ()]
+      [Color.White, gen_info ();
+       Color.Black, gen_info ()]
+
+  let distribute t color =
+    let info = Color_map.find_exn t color in
+    if info.distributed then None
+    else (info.distributed <- true; Some info.secret)
+
+  let check_secret t color secret =
+    (Color_map.find_exn t color).secret = secret
 end
 
 module Pipe_manager = struct
@@ -69,38 +86,44 @@ let protocol_of_string s =
   | sexp -> Ok sexp
   | exception _ -> Error "invalid sexp"
 
-let handle_protocol ~game =
+let handle_protocol ~game ~secrets =
   let open Backgammon.Protocol in
   function
-  | Request_state -> [Update_state !game]
-  | Move l ->
+  | Request_state -> [Broadcast (Update_state !game)]
+  | Request_color color ->
+    (match Secrets.distribute secrets color with
+     | None -> [Response (Error_message "That color is taken")]
+     | Some i -> [Response (Send_color_secret (color, i))])
+  | Move (color, secret, l) ->
     (match !game with
-    | Backgammon.Game.Won _ -> [Error_message "Game is over"]
+    | Backgammon.Game.Won _ -> [Response (Error_message "Game is over")]
     | Backgammon.Game.Live state ->
-      (match Game.apply_sequence state l with
-       | Error s -> [Error_message s]
-       | Ok (state, messages) -> game := state; Update_state state :: messages))
+      (if state.turn <> color
+       then [Response (Error_message "Not your turn")]
+       else if not @@ Secrets.check_secret secrets color secret
+       then [Response (Error_message "You aren't authorized for that color")]
+       else match Game.apply_sequence state l with
+         | Error s -> [Response (Error_message s)]
+         | Ok (state, messages) ->
+           let to_broadcast = List.map ~f:(fun m -> Broadcast m) @@ Update_state state :: messages in
+           game := state; to_broadcast))
 
-let process_string ~game s =
+let process_string ~game ~secrets s =
   let open Result.Let_syntax in
   let open Backgammon.Protocol in
   let result =
     let%map protocol = protocol_of_string s in
-    handle_protocol ~game protocol
+    handle_protocol ~game ~secrets protocol
   in
   (match result with
    | Ok state -> state
-   | Error message -> [Error_message message])
-  |> [%sexp_of: server_message list]
-  |> Sexp.to_string
+   | Error message -> [Response (Error_message message)])
 
 let string_of_game = Fn.compose Sexp.to_string [%sexp_of: Backgammon.Game.t]
 
-type message =
-  | Response of W.Frame.t
-  | Broadcast of W.Frame.t
+type reply = Frame of W.Frame.t | Server_message of message list
 
-let handle_client ~game ~pipes addr reader writer =
+let handle_client ~game ~secrets ~pipes addr reader writer =
   let addr_str = Socket.Address.(to_string addr) in
   info "Client connection from %s" addr_str;
   let app_to_ws, sender_write = Pipe.create () in
@@ -122,30 +145,42 @@ let handle_client ~game ~pipes addr reader writer =
       debug "<- %s" W.Frame.(show frame);
       let frame', closed =
         match opcode with
-        | Opcode.Ping -> Some (Response (create ~opcode:Opcode.Pong ~content ())), false
+        | Opcode.Ping -> Some (Frame (create ~opcode:Opcode.Pong ~content ())), false
         | Opcode.Close ->
           (* Immediately echo and pass this last message to the user *)
           Pipe_manager.remove pipes pipe_id;
           if String.length content >= 2 then
-            Some (Response (create ~opcode:Opcode.Close
+            Some (Frame (create ~opcode:Opcode.Close
                               ~content:(String.sub content 0 2) ())), true
           else
-          Some (Response (close 100)), true
+          Some (Frame (close 100)), true
         | Opcode.Pong -> None, false
         | Opcode.Text
-        | Opcode.Binary -> Some (Broadcast {frame with content = process_string game content}), false
-        | _ -> Some (Response (close 1002)), false
+        | Opcode.Binary -> Some (Server_message (process_string ~game ~secrets frame.content)), false
+        | _ -> Some (Frame (close 1002)), false
       in
       print_endline @@ Sexp.to_string @@ [%sexp_of: int list] @@ Int.Map.keys pipes.pipes;
       begin
         match frame' with
         | None ->
           Deferred.unit
-        | Some (Response frame') ->
+        | Some (Frame frame') ->
           debug "-> %s" (show frame');
           Pipe.write_if_open sender_write frame'
-        | Some (Broadcast frame') ->
-          Deferred.List.iter ~f:(fun pipe -> Pipe.write_if_open pipe frame') @@ Int.Map.data pipes.pipes
+        | Some (Server_message messages) ->
+          let to_broadcast, to_respond =
+            List.partition_map messages ~f:(
+              function Broadcast m -> `Fst m | Response m -> `Snd m)
+          in
+          let broadcast_content = Sexp.to_string @@
+            [%sexp_of: Backgammon.Protocol.server_message list] to_broadcast in
+          let response_content = Sexp.to_string @@
+            [%sexp_of: Backgammon.Protocol.server_message list] to_respond in
+          Deferred.all_unit [
+            Deferred.List.iter ~f:(fun pipe ->
+                Pipe.write_if_open pipe {frame with content = broadcast_content}) @@ Int.Map.data pipes.pipes;
+            Pipe.write_if_open sender_write {frame with content = response_content}
+          ]
       end >>= fun () ->
       if closed then Deferred.unit
       else loop ()
@@ -185,11 +220,12 @@ let command =
       | Some state -> ref state
       | None -> ref @@ Backgammon.Game.make_starting_state ()
     in
+    let secrets = Secrets.generate () in
     let pipes = Pipe_manager.create () in
     let port = 3000 in
     Tcp.(Server.create
            ~on_handler_error:`Ignore
-           Where_to_listen.(of_port port) (handle_client ~game ~pipes)) >>=
+           Where_to_listen.(of_port port) (handle_client ~game ~secrets ~pipes)) >>=
     Tcp.Server.close_finished
   in
   Command.async_spec ~summary:"Backgammon server" spec run
