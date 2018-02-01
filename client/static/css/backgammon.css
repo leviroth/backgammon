@@ -35,7 +35,7 @@ div.board {
 
 div.row {
   display: grid;
-  grid-template-columns: repeat(12, 100px) 100px;
+  grid-template-columns: repeat(13, 90px) 90px;
   height: 250px;
 }
 
@@ -56,8 +56,8 @@ div.point {
   z-index: -1;
   width: 0;
   height: 0;
-  border-left: 50px solid transparent;
-  border-right: 50px solid transparent;
+  border-left: 45px solid transparent;
+  border-right: 45px solid transparent;
 }
 
 .upper .point-bg {
@@ -100,3 +100,16 @@ div.circle.white {
 }
 
 div.possible { background-color: #aaa;}
+
+div.bar {
+    background-color: #35200e;
+    display: grid;
+}
+
+div.upper .bar .pieces {
+    align-self: end;
+}
+
+div.lower .bar .pieces {
+    align-self: start;
+}

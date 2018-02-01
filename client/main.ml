@@ -197,20 +197,27 @@ let view model =
       else Choose_source (Set.empty (module Backgammon.Location))
     in
     let row board side source pending =
-      let range, color =
+      let range1, range2, color =
         match side with
-        | `lower -> List.range ~stop:`inclusive ~stride:(-1) 12 1, Color.White
-        | `upper -> List.range ~stop:`inclusive 13 24, Color.Black
+        | `lower ->
+          List.range ~stop:`inclusive ~stride:(-1) 12 7,
+          List.range ~stop:`inclusive ~stride:(-1) 6 1,
+          Color.White
+        | `upper ->
+          List.range ~stop:`inclusive 13 18,
+          List.range ~stop:`inclusive 19 24,
+          Color.Black
       in
-      (List.map range ~f:(fun i -> point board i clickables)) @ [home board color clickables]
+      (List.map range1 ~f:(fun i -> point board i clickables))
+      @ [bar board color clickables]
+      @ (List.map range2 ~f:(fun i -> point board i clickables))
+      @ [home board color clickables]
     in
     div ~a:[class_ "board"; onclick (fun _ -> Cancel_source)]
     @@ List.concat [
       List.map [`upper; `lower] ~f:(fun side ->
           let side_name = match side with `lower -> "lower" | `upper -> "upper" in
           div ~a:[class_multi ["row"; side_name]] @@ row board side model.selected_source model.pending_move);
-      List.map Color.[White; Black] ~f:(fun color -> bar board color clickables);
-      (* List.map Color.[White; Black] ~f:(fun color -> home board color clickables); *)
       [text @@ Printf.sprintf "Dice: %d %d" (fst dice) (snd dice)];
       List.map model.messages ~f:(fun message -> div [text message]);
       [color_info];
