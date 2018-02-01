@@ -60,19 +60,27 @@ type action =
 
 let class_multi l = class_ @@ String.concat ~sep:" " l
 
+let string_of_color =
+  function
+  | Color.Black -> "black"
+  | Color.White -> "white"
+
 let circle color loc =
   div
-    ~a:[class_multi ["circle"; color]]
+    ~a:[class_multi ["circle"; string_of_color color]]
     []
 
 let represent_stack stack loc =
+  let n_circles color loc =
+    List.init ~f:(fun _ -> circle color loc)
+  in
   let open Color in
   div
     ~a:[class_ "pieces"]
     (match stack with
      | None -> []
-     | Some (White, n) -> List.init n ~f:(fun _ -> circle "white" loc)
-     | Some (Black, n) -> List.init n ~f:(fun _ -> circle "black" loc))
+     | Some (color, n) when n <= 5 -> n_circles color loc n
+     | Some (color, n) -> (text @@ Printf.sprintf "x%d" n) :: n_circles color loc 5)
 
 let dest_mem possible_dests location =
   List.mem
@@ -115,11 +123,6 @@ let bar board color clickables =
   div
     ~a:(this_onclick @ [class_ "bar"; attr "id" (Printf.sprintf "bar-%s" color_name)])
     [represent_stack pieces location]
-
-let string_of_color =
-  function
-  | Color.Black -> "black"
-  | Color.White -> "white"
 
 let home board color clickables =
   let location = Location.(`Home color) in
