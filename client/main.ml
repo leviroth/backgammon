@@ -51,6 +51,7 @@ type model =
    socket : Js_of_ocaml.WebSockets.webSocket Js_of_ocaml.Js.t}
 
 type action =
+  | Cancel_source
   | Get_color_secret of Color.t
   | Prepare_move of Location.source * int
   | Set_color_secret of Color.t * int
@@ -203,7 +204,7 @@ let view model =
       in
       (List.map range ~f:(fun i -> point board i clickables)) @ [home board color clickables]
     in
-    div ~a:[class_ "board"]
+    div ~a:[class_ "board"; onclick (fun _ -> Cancel_source)]
     @@ List.concat [
       List.map [`upper; `lower] ~f:(fun side ->
           let side_name = match side with `lower -> "lower" | `upper -> "upper" in
@@ -244,6 +245,7 @@ let update m a =
                selected_source = None;})
   | _, Select_source s ->
     {m with selected_source = Some s}
+  | _, Cancel_source -> {m with selected_source = None}
   | _, Update state ->
     {m with game_state = state; selected_source = None; pending_move = []}
   | _, Message message ->
