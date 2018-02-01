@@ -172,6 +172,7 @@ let view model =
        | None -> div [select_color_button Color.White;
                       select_color_button Color.Black])
     in
+    let my_turn = Option.value_map model.color ~default:false ~f:([%compare.equal: Color.t] turn) in
     let intermediate_board color board (source, die) =
       let open Game in
       let dest = Location.find_dest source die color in
@@ -185,7 +186,10 @@ let view model =
       |> fun sequences -> sequences_after_dice sequences consumed_dice
     in
     let trees = Game.all_trees board turn sequences in
-    let clickables = clickables model.selected_source trees turn in
+    let clickables =
+      if my_turn then clickables model.selected_source trees turn
+      else Choose_source (Set.empty (module Backgammon.Location))
+    in
     let row board side source pending =
       let range, color =
         match side with
