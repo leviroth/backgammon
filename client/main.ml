@@ -172,7 +172,12 @@ let view model =
        | None -> div [select_color_button Color.White;
                       select_color_button Color.Black])
     in
-    let my_turn = Option.value_map model.color ~default:false ~f:([%compare.equal: Color.t] turn) in
+    let my_turn =
+      Option.value_map
+        model.color
+        ~default:false
+        ~f:([%compare.equal: Color.t] turn)
+    in
     let intermediate_board color board (source, die) =
       let open Game in
       let dest = Location.find_dest source die color in
@@ -207,7 +212,8 @@ let view model =
       (* List.map Color.[White; Black] ~f:(fun color -> home board color clickables); *)
       [text @@ Printf.sprintf "Dice: %d %d" (fst dice) (snd dice)];
       List.map model.messages ~f:(fun message -> div [text message]);
-      [color_info]
+      [color_info];
+      if my_turn then [div [text "It's your turn!"]] else []
     ]
 
 let init socket =
