@@ -8,29 +8,46 @@ type message_scope =
   | Response
   | Broadcast
 
-module Secrets = struct
+module Secrets : sig
   open Backgammon
-  module Color_map = Map.Make(Color)
+
+  type t
+
+  val generate : unit -> t
+  val distribute : t -> Color.t -> int option
+  val check_secret : t -> Color.t -> int -> bool
+  val get_secret : t -> Color.t -> int
+end = struct
+  open Backgammon
 
   type secret_info = {secret : int; mutable distributed : bool}
 
-  type t = secret_info Color_map.t
+  type t = secret_info array
 
   let generate () =
     let gen_info () =
       {secret = Random.bits (); distributed = false}
     in
-    Color_map.of_alist_exn
-      [Color.White, gen_info ();
-       Color.Black, gen_info ()]
+    [| gen_info (); gen_info () |]
+
+  let color_index =
+    function
+    | Color.White -> 0
+    | Color.Black -> 1
+
+  let get_info t color =
+    t.(color_index color)
 
   let distribute t color =
-    let info = Color_map.find_exn t color in
+    let info = get_info t color in
     if info.distributed then None
     else (info.distributed <- true; Some info.secret)
 
+  let get_secret t color =
+    (get_info t color).secret
+
   let check_secret t color secret =
-    (Color_map.find_exn t color).secret = secret
+    get_secret t color = secret
 end
 
 module Pipe_manager = struct
@@ -137,19 +154,19 @@ type reply =
 
 let handle_client ~game ~secrets ~pipes addr reader writer =
   let addr_str = Socket.Address.(to_string addr) in
-  info "Client connection from %s" addr_str;
+  debug "Client connection from %s" addr_str;
   let app_to_ws, sender_write = Pipe.create () in
   let receiver_read, ws_to_app = Pipe.create () in
   let pipe_id = Pipe_manager.add pipes sender_write in
   let check_request req =
     let req_str = Format.asprintf "%a" Cohttp.Request.pp_hum req in
-    info "Incoming connnection request: %s" req_str ;
+    debug "Incoming connnection request: %s" req_str ;
     Deferred.return (Cohttp.Request.(uri req |> Uri.path) = "/ws")
   in
   let rec loop () =
     Pipe.read receiver_read >>= function
     | `Eof ->
-      info "Client %s disconnected" addr_str;
+      debug "Client %s disconnected" addr_str;
       Pipe_manager.remove pipes pipe_id;
       Deferred.unit
     | `Ok ({ W.Frame.opcode; extension; final; content } as frame) ->
@@ -171,7 +188,6 @@ let handle_client ~game ~secrets ~pipes addr reader writer =
         | Opcode.Binary -> Some (Server_message (process_string ~game ~secrets frame.content)), false
         | _ -> Some (Frame (close 1002)), false
       in
-      print_endline @@ Sexp.to_string @@ [%sexp_of: int list] @@ Int.Map.keys pipes.pipes;
       begin
         match frame' with
         | None ->
@@ -232,6 +248,11 @@ let command =
       | None -> ref @@ Backgammon.Game.make_starting_state ()
     in
     let secrets = Secrets.generate () in
+    let white_secret, black_secret =
+      Secrets.get_secret secrets Backgammon.Color.White,
+      Secrets.get_secret secrets Backgammon.Color.Black
+    in
+    info "Secrets:\n White: %d\n Black: %d" white_secret black_secret;
     let pipes = Pipe_manager.create () in
     let port = 3000 in
     Tcp.(Server.create
