@@ -4,9 +4,9 @@ open Log.Global
 
 module W = Websocket_async
 
-type message =
-  | Response of Backgammon.Protocol.server_message
-  | Broadcast of Backgammon.Protocol.server_message
+type message_scope =
+  | Response
+  | Broadcast
 
 module Secrets = struct
   open Backgammon
@@ -36,13 +36,23 @@ end
 module Pipe_manager = struct
   type t = {mutable counter : int;
             mutable pipes : W.Frame.t Pipe.Writer.t Int.Map.t}
+
   let create () = {counter = -1; pipes = Int.Map.empty}
+
   let add t pipe =
     t.counter <- t.counter + 1;
     t.pipes <- Int.Map.set t.pipes ~key:t.counter ~data:pipe;
     t.counter
+
   let remove t id =
     t.pipes <- Int.Map.remove t.pipes id
+
+  let broadcast t content =
+    let open W.Frame in
+    let pipes = Int.Map.data t.pipes in
+    Deferred.List.iter pipes ~f:(fun pipe ->
+        Pipe.write_if_open pipe (create ~content ~opcode:Opcode.Text ()))
+
 end
 
 module Game = struct
@@ -89,24 +99,24 @@ let protocol_of_string s =
 let handle_protocol ~game ~secrets =
   let open Backgammon.Protocol in
   function
-  | Request_state -> [Broadcast (Update_state !game)]
+  | Request_state -> [Broadcast, Update_state !game]
   | Request_color color ->
     (match Secrets.distribute secrets color with
-     | None -> [Response (Error_message "That color is taken")]
-     | Some i -> [Response (Send_color_secret (color, i))])
+     | None -> [Response, Error_message "That color is taken"]
+     | Some i -> [Response, Send_color_secret (color, i)])
   | Move (color, secret, l) ->
     (match !game with
-    | Backgammon.Game.Won _ -> [Response (Error_message "Game is over")]
+    | Backgammon.Game.Won _ -> [Response, Error_message "Game is over"]
     | Backgammon.Game.Live state ->
       (if state.turn <> color
-       then [Response (Error_message "Not your turn")]
+       then [Response, Error_message "Not your turn"]
        else if not @@ Secrets.check_secret secrets color secret
-       then [Response (Error_message "You aren't authorized for that color")]
+       then [Response, Error_message "You aren't authorized for that color"]
        else match Game.apply_sequence state l with
-         | Error s -> [Response (Error_message s)]
+         | Error s -> [Response, Error_message s]
          | Ok (state, messages) ->
-           let to_broadcast = List.map ~f:(fun m -> Broadcast m) @@ Update_state state :: messages in
-           game := state; to_broadcast))
+           game := state;
+           List.map ~f:(fun m -> Broadcast, m) @@ Update_state state :: messages))
 
 let process_string ~game ~secrets s =
   let open Result.Let_syntax in
@@ -117,11 +127,13 @@ let process_string ~game ~secrets s =
   in
   (match result with
    | Ok state -> state
-   | Error message -> [Response (Error_message message)])
+   | Error message -> [Response, Error_message message])
 
 let string_of_game = Fn.compose Sexp.to_string [%sexp_of: Backgammon.Game.t]
 
-type reply = Frame of W.Frame.t | Server_message of message list
+type reply =
+  | Frame of W.Frame.t
+  | Server_message of (message_scope * Backgammon.Protocol.server_message) list
 
 let handle_client ~game ~secrets ~pipes addr reader writer =
   let addr_str = Socket.Address.(to_string addr) in
@@ -170,15 +182,14 @@ let handle_client ~game ~secrets ~pipes addr reader writer =
         | Some (Server_message messages) ->
           let to_broadcast, to_respond =
             List.partition_map messages ~f:(
-              function Broadcast m -> `Fst m | Response m -> `Snd m)
+              function Broadcast, m -> `Fst m | Response, m -> `Snd m)
           in
           let broadcast_content = Sexp.to_string @@
             [%sexp_of: Backgammon.Protocol.server_message list] to_broadcast in
           let response_content = Sexp.to_string @@
             [%sexp_of: Backgammon.Protocol.server_message list] to_respond in
           Deferred.all_unit [
-            Deferred.List.iter ~f:(fun pipe ->
-                Pipe.write_if_open pipe {frame with content = broadcast_content}) @@ Int.Map.data pipes.pipes;
+            Pipe_manager.broadcast pipes broadcast_content;
             Pipe.write_if_open sender_write {frame with content = response_content}
           ]
       end >>= fun () ->
