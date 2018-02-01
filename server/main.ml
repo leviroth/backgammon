@@ -99,7 +99,7 @@ let protocol_of_string s =
 let handle_protocol ~game ~secrets =
   let open Backgammon.Protocol in
   function
-  | Request_state -> [Broadcast, Update_state !game]
+  | Request_state -> [Response, Update_state !game]
   | Request_color color ->
     (match Secrets.distribute secrets color with
      | None -> [Response, Error_message "That color is taken"]
