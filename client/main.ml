@@ -184,7 +184,12 @@ let view model =
       let dest = Location.find_dest source die color in
       single_move_unsafe board source dest
     in
-    let board = List.fold model.pending_move ~init:board ~f:(intermediate_board turn) in
+    let board =
+      List.fold
+        (List.rev model.pending_move)
+        ~init:board
+        ~f:(intermediate_board turn)
+    in
     let consumed_dice = List.rev_map model.pending_move ~f:snd in
     let sequences =
       dice
