@@ -262,4 +262,6 @@ let command =
   in
   Command.async_spec ~summary:"Backgammon server" spec run
 
-let () = Command.run command
+let () =
+  Random.self_init ();
+  Command.run command

@@ -301,5 +301,5 @@ let run () =
     );
   socket##.onopen := Dom.handler (fun _ -> send_on_protocol socket Protocol.Request_state; Js.bool false)
 
-     let () =
+let () =
   Js_browser.Window.set_onload Js_browser.window run
