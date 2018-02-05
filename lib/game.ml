@@ -184,10 +184,16 @@ let move_legal_sequence board color dice sequence =
     (* Sequence must use maximum possible number of dice. *)
     && List.length sequence = (max_sequence_length board color dice)
     (* Sequence must use greater of two dice where possible. *)
-    && (List.length steps <> 1
-        || let max_elt = List.max_elt steps ~cmp:compare |> Option.value_exn in
-        List.hd_exn steps = max_elt
-        || List.length (legal_uses board color max_elt) = 0)
+    && (match steps with
+        | [die] ->
+          let greatest_in_dice =
+            List.filter_map dice ~f:(List.max_elt ~cmp:compare)
+            |> List.max_elt ~cmp:compare
+            |> Option.value_exn
+          in
+          die = greatest_in_dice
+          || List.length (legal_uses board color greatest_in_dice) = 0
+        | _ -> true)
 
 let roll_die () =
   Random.int 6 + 1
