@@ -72,7 +72,7 @@ let using_full_value point die color =
 let no_higher_points_filled board color point =
   let higher_points = match color with
     | Color.White -> List.range (point + 1) 6 ~stop:`inclusive
-    | Color.Black -> List.range ~stride:(-1) (25 - point - 1) 19 ~stop:`inclusive in
+    | Color.Black -> List.range ~stride:(-1) (point - 1) 19 ~stop:`inclusive in
   higher_points
   |> List.map ~f:Location.point
   |> List.for_all ~f:(fun x ->
