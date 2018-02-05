@@ -2,4 +2,5 @@
 
 (executables
  ((names        (cli))
+  (flags (:standard -short-paths))
   (libraries (backgammon stdio base))))
