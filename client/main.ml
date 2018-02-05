@@ -86,65 +86,40 @@ let dest_mem possible_dests location =
     ~equal:(Location.equal :> Location.dest -> Location.dest -> bool)
     possible_dests location
 
-let point board i (clickables : clickable) =
-  let location = Location.point i in
+let represent_loc ~board ~clickables location =
   let pieces = Board.get board location in
-  let bgcolor = if i % 2 = 0 then "light" else "dark" in
-  let this_class =
-    "point" :: (match clickables with
-        | Choose_dest (_, s) when Map.mem s location -> ["possible"]
-        | _ -> [])
+  let base_class =
+    match location with
+    | `Point _ -> "point"
+    | `Home c -> "home"
+    | `Bar c -> "bar"
   in
-  let this_onclick =
-    match clickables with
-    | Choose_source s when Set.mem s location ->
-      [onclick @@ fun _ -> Select_source location]
-    | Choose_dest (source, dests) ->
-      (match Map.find dests location with
-       | Some die -> [onclick @@ fun _ -> Prepare_move (source, die)]
-       | None -> [])
-    | _ -> []
+  let this_onclick, this_class =
+    match clickables, location with
+    | Choose_source s,
+      (`Point _ | `Bar _ as source) when Set.mem s source ->
+      [onclick @@ fun _ -> Select_source source], []
+    | Choose_dest (source, dests),
+      (`Point _ | `Home _ as dest) ->
+      (match Map.find dests dest with
+       | Some die -> [onclick @@ fun _ -> Prepare_move (source, die)], ["possible"]
+       | None -> [], [])
+    | _ -> [], []
+  in
+  let this_class = class_multi @@ base_class :: this_class in
+  let contents =
+    let extra =
+      match location with
+      | `Point i ->
+        let bgcolor = if (i :> int) % 2 = 0 then "light" else "dark" in
+        [div ~a:[class_multi ["point-bg"; bgcolor]] []]
+      | `Home _ | `Bar _ -> []
+    in
+    extra @ [represent_stack pieces location]
   in
   div
-    ~a:(this_onclick @ [class_multi this_class; attr "id" (Printf.sprintf "point-%d" i)])
-    [div ~a:[class_multi ["point-bg"; bgcolor]] []; represent_stack pieces location]
-
-let bar board color clickables =
-  let location = Location.(`Bar color) in
-  let pieces = Board.get board Location.(`Bar color) in
-  let this_onclick =
-    match clickables with
-    | Choose_source s when Set.mem s location ->
-      [onclick @@ fun _ -> Select_source location]
-    | _ -> []
-  in
-  let color_name = match color with | Color.Black -> "black" | Color.White -> "white" in
-  div
-    ~a:(this_onclick @ [class_ "bar"; attr "id" (Printf.sprintf "bar-%s" color_name)])
-    [represent_stack pieces location]
-
-let home board color clickables =
-  let location = Location.(`Home color) in
-  let pieces = Board.get board Location.(`Home color) in
-  let this_class =
-    class_multi
-      ("home" ::
-       (match clickables with
-        | Choose_dest (_, s) when Map.mem s location -> ["possible"]
-        | _ -> []))
-  in
-  let this_onclick =
-    match clickables with
-    | Choose_dest (source, dests) ->
-      (match Map.find dests location with
-       | Some die -> [onclick @@ fun _ -> Prepare_move (source, die)]
-       | None -> [])
-    | Choose_source _ -> []
-  in
-  let color_name = string_of_color color in
-  div
-    ~a:(this_onclick @ [this_class; attr "id" (Printf.sprintf "home-%s" color_name)])
-    [represent_stack pieces location]
+    ~a:(this_class :: this_onclick)
+    contents
 
 let sequences_after_die sequences die =
   let tail_or_nothing =
@@ -211,10 +186,13 @@ let view model =
           List.range ~stop:`inclusive 19 24,
           Color.Black
       in
-      (List.map range1 ~f:(fun i -> point board i clickables))
-      @ [bar board color clickables]
-      @ (List.map range2 ~f:(fun i -> point board i clickables))
-      @ [home board color clickables]
+      let row_model =
+        (List.map range1 ~f:Location.point)
+        @ [`Bar color]
+        @ (List.map range2 ~f:Location.point)
+        @ [`Home color]
+      in
+      List.map row_model ~f:(represent_loc ~board ~clickables)
     in
     div ~a:[class_ "board"; onclick (fun _ -> Cancel_source)]
     @@ List.concat [
