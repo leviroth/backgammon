@@ -54,10 +54,8 @@ type action =
   | Cancel_source
   | Get_color_secret of Color.t
   | Prepare_move of Location.source * int
-  | Set_color_secret of Color.t * int
   | Select_source of Location.source
-  | Update of Game.t
-  | Message of string
+  | Server_message of Protocol.server_message
 
 let class_multi l = class_ @@ String.concat ~sep:" " l
 
@@ -241,28 +239,42 @@ let init socket =
    socket;}
 
 let update m a =
-  match m, a with
-  | _, Get_color_secret c -> send_on_protocol m.socket @@ Protocol.Request_color c; m
-  | _, Set_color_secret (color, secret) -> {m with color = Some color;
+  let apply_server_message m =
+    let open Protocol in
+    function
+    | Update_state state -> {m with game_state = state;
+                                    selected_source = None;
+                                    pending_move = []}
+    | Send_color_secret (color, secret) -> {m with color = Some color;
                                                    secret = Some secret;}
-  | {color = Some c; secret = Some s}, Prepare_move (source, die) ->
+    | Unusable_dice (color, (d1, d2)) ->
+      let message =
+        Printf.sprintf "%s rolled the unusable dice (%d, %d)"
+          (string_of_color color)
+          d1 d2
+      in
+      {m with messages = message :: m.messages}
+    | Error_message message -> log_string message; m
+  in
+  match a with
+  | Get_color_secret c -> send_on_protocol m.socket @@ Protocol.Request_color c; m
+  | Prepare_move (source, die) ->
     let open Game in
-    (match m.game_state with
-     | Won _ -> m
-     | Live g ->
-       let pending_move = (source, die) :: m.pending_move in
-       if List.length pending_move = required_steps g
-       then send_moves m.socket c s @@ List.rev pending_move;
-       {m with pending_move;
-               selected_source = None;})
-  | _, Select_source s ->
+    (match m.color, m.secret with
+      | Some c, Some s ->
+        (match m.game_state with
+         | Won _ -> m
+         | Live g ->
+           let pending_move = (source, die) :: m.pending_move in
+           if List.length pending_move = required_steps g
+           then send_moves m.socket c s @@ List.rev pending_move;
+           {m with pending_move;
+                   selected_source = None;})
+      | _, _ -> m)
+  | Select_source s ->
     {m with selected_source = Some s}
-  | _, Cancel_source -> {m with selected_source = None}
-  | _, Update state ->
-    {m with game_state = state; selected_source = None; pending_move = []}
-  | _, Message message ->
-    {m with messages = message :: m.messages}
-  | _, _ -> m
+  | Cancel_source -> {m with selected_source = None}
+  | Server_message message -> apply_server_message m message
 
 
 let app socket = simple_app ~init:(init socket) ~view ~update ()
@@ -284,21 +296,8 @@ let run () =
         |> sexpify
         |> [%of_sexp: Protocol.server_message list]
       in
-      List.iter result ~f:(function
-          | Send_color_secret (c, s) ->
-            Vdom_blit.process app_instance (Set_color_secret (c, s))
-          | Error_message s -> log_string s
-          | Update_state state ->
-            Vdom_blit.process app_instance (Update state)
-          | Unusable_dice (player, (d1, d2)) ->
-            let message =
-              Printf.sprintf "%s rolled the unusable dice (%d, %d)"
-                (string_of_color player)
-                d1 d2
-            in
-            Vdom_blit.process app_instance (Message message)
-        ); Js.bool false
-    );
+      List.iter result ~f:(fun message -> Vdom_blit.process app_instance (Server_message message));
+      Js.bool false);
   socket##.onopen := Dom.handler (fun _ -> send_on_protocol socket Protocol.Request_state; Js.bool false)
 
 let () =
