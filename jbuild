@@ -1,0 +1,8 @@
+(jbuild_version 1)
+
+(alias
+ ((name    game)
+  (deps    (server/main.exe
+            client/main.bc.js
+            client/index.html
+            client/static/css/backgammon.css))))

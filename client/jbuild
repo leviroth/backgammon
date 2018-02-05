@@ -1,0 +1,14 @@
+(jbuild_version 1)
+
+(executables
+ ((names        (main))
+  (ocamlc_flags (-no-check-prims))
+  (js_of_ocaml ((flags (+weak.js))))
+  (libraries (backgammon
+              base
+              core_kernel
+              gen_js_api
+              js_of_ocaml
+              stdio
+              ocaml-vdom))
+  (preprocess (pps (ppx_jane js_of_ocaml-ppx)))))

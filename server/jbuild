@@ -1,0 +1,7 @@
+(jbuild_version 1)
+
+(executables
+ ((names        (main))
+  (libraries (backgammon
+              websocket-async))
+  (preprocess (pps (ppx_jane)))))

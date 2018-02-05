@@ -18,6 +18,8 @@ type source = [
   | point
 ]
 
+let sexp_of_source source = sexp_of_t (source :> t)
+
 type dest = [
   | point
   | `Home of Color.t
