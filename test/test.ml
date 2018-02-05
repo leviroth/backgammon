@@ -36,7 +36,7 @@ let test_sequence_legality _ =
     move_legal_sequence stripped_board_3 White [[1; 6]; [6; 1]] [(Location.point 5, 1); (Location.point 4, 6)];
     not @@ move_legal_sequence stripped_board_4 White [[1; 2]; [2; 1]] [(Location.point 4, 2)]]
 
-let test_sample_games _ = Parse_test.process_directory "test/sample_games"
+let test_sample_games _ = Parse_test.process_directory "../../../test/sample_games"
 
 let suite =
   "suite" >:::
