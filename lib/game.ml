@@ -157,8 +157,30 @@ let rec tree_height = function
 let all_heights board color dice =
   List.map dice ~f:(fun x -> x |> legal_use_tree board color |> tree_height)
 
-let max_sequence_length board color dice =
-  all_heights board color dice |> List.max_elt ~cmp:compare |> Option.value_exn
+let max_sequence_length board color dice_orders =
+  let next_board board loc die =
+    single_move_unsafe board loc (Location.find_dest loc die color)
+  in
+  let max_depth = List.length @@ List.hd_exn dice_orders in
+  let rec aux board color dice depth =
+    if depth = max_depth then Error depth
+    else match dice with
+      | [] -> Ok depth
+      | hd :: tl ->
+        (match legal_uses board color hd with
+         | [] -> Ok depth
+         | uses ->
+           List.fold_result
+             uses
+             ~init:0
+             ~f:(fun max_so_far move ->
+                 aux (next_board board move hd) color tl (depth + 1)
+                 |> Result.map ~f:(max max_so_far)))
+  in
+  List.fold_result dice_orders ~init:0 ~f:(fun max_so_far die ->
+      aux board color die 0
+      |> Result.map ~f:(max max_so_far))
+  |> function Ok n -> n | Error n -> n
 
 (* True if sequence of (die to use, piece to move) is legal, given possible
    permutations in dice. *)
