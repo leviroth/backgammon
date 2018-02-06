@@ -38,7 +38,7 @@ let legal_moves l =
     let step b (start, die) = Game.single_move_unsafe b start (Location.find_dest start die turn) in
     let sequences = Game.get_dice_sequences move.dice in
     let converted_plays = convert_plays (List.hd_exn sequences) move.plays in
-    match Game.move_legal_sequence board turn sequences @@ (converted_plays :> (Location.t * int) list) with
+    match Game.move_legal_sequence board turn sequences converted_plays with
     | false -> Error move
     | true -> Ok (List.fold converted_plays ~init:board ~f:step)
   in List.fold_result ~init:(Game.starting_board) ~f:aux l

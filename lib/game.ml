@@ -129,34 +129,6 @@ let legal_uses board color die =
   List.filter sources ~f:(fun source ->
       move_legal_individual board source die color)
 
-type move_tree =
-    Tree of Location.source * int * move_tree list
-[@@deriving sexp_of]
-
-(** Construct a tree of possible moves, given a list of dice. Must be pruned for
-    under-use of available dice. *)
-let rec legal_use_tree board color dice : move_tree list =
-  let next_board loc die =
-    single_move_unsafe board loc (Location.find_dest loc die color)
-  in
-  match dice with
-  | [] -> []
-  | hd::tl -> legal_uses board color hd
-              |> List.map ~f:(fun move ->
-                  Tree (move, hd, legal_use_tree (next_board move hd) color tl))
-
-let all_trees board color dice_orders =
-  List.concat_map dice_orders ~f:(legal_use_tree board color)
-
-(** Find the maximum height of a list of trees; in other words, the maximum
-    number of moves possible. *)
-let rec tree_height = function
-  | [] -> 0
-  | Tree(_, _, rest) :: tl -> max (1 + tree_height rest) (tree_height tl)
-
-let all_heights board color dice =
-  List.map dice ~f:(fun x -> x |> legal_use_tree board color |> tree_height)
-
 let max_sequence_length board color dice_orders =
   let next_board board loc die =
     single_move_unsafe board loc (Location.find_dest loc die color)
@@ -182,40 +154,38 @@ let max_sequence_length board color dice_orders =
       |> Result.map ~f:(max max_so_far))
   |> function Ok n -> n | Error n -> n
 
+let locally_validate_sequence board color dice_orders sequence =
+  let next_board board loc die =
+    single_move_unsafe board loc (Location.find_dest loc die color)
+  in
+  let steps = List.map sequence ~f:snd in
+  match List.find dice_orders ~f:(List.is_prefix ~prefix:steps ~equal:(=)) with
+  | None -> false
+  | Some active_dice_sequence ->
+    List.fold_result sequence ~init:board ~f:(fun board (source, die) ->
+        if move_legal_individual board source die color
+        then Ok (next_board board source die)
+            else Error ())
+    |> Result.is_ok
+
 (* True if sequence of (die to use, piece to move) is legal, given possible
    permutations in dice. *)
 let move_legal_sequence board color dice sequence =
-  let find_tree loc trees =
-    List.find trees ~f:(fun (Tree (l, _, _)) ->
-        Location.equal (l :> Location.t) loc)
-  in
-  let rec in_tree seq tree =
-    match seq with
-    | [] -> true
-    | hd::tl -> match find_tree hd tree with
-      | None -> false
-      | Some Tree(_, _, rest) -> in_tree tl rest
-  in
-  let steps = (List.map sequence ~f:snd) in
-  match List.find dice ~f:(List.is_prefix ~prefix:steps ~equal:(=)) with
-  | None -> false
-  | Some active_dice_sequence ->
-    let tree = legal_use_tree board color active_dice_sequence in
-    (* Sequence must only use the dice available, of course. *)
-    in_tree (List.map sequence ~f:fst) tree
-    (* Sequence must use maximum possible number of dice. *)
-    && List.length sequence = (max_sequence_length board color dice)
-    (* Sequence must use greater of two dice where possible. *)
-    && (match steps with
-        | [die] ->
-          let greatest_in_dice =
-            List.filter_map dice ~f:(List.max_elt ~cmp:compare)
-            |> List.max_elt ~cmp:compare
-            |> Option.value_exn
-          in
-          die = greatest_in_dice
-          || List.length (legal_uses board color greatest_in_dice) = 0
-        | _ -> true)
+  let steps = List.map sequence ~f:snd in
+  locally_validate_sequence board color dice sequence
+  (* Sequence must use maximum possible number of dice. *)
+  && List.length sequence = (max_sequence_length board color dice)
+  (* Sequence must use greater of two dice where possible. *)
+  && (match steps with
+      | [die] ->
+        let greatest_in_dice =
+          List.filter_map dice ~f:(List.max_elt ~cmp:compare)
+          |> List.max_elt ~cmp:compare
+          |> Option.value_exn
+        in
+        die = greatest_in_dice
+        || List.length (legal_uses board color greatest_in_dice) = 0
+      | _ -> true)
 
 let roll_die () =
   Random.int 6 + 1
@@ -256,7 +226,7 @@ let perform_sequence game sequence =
       game.board
       game.turn
       (get_dice_sequences game.dice)
-      (sequence :> (Location.t * int) list)
+      sequence
   then let next_state =
          {board = aux game.board sequence;
           turn = Color.flip_color game.turn;
