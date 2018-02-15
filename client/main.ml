@@ -27,18 +27,29 @@ type clickable =
 
 let source_equal = (Location.equal :> Location.source -> Location.source -> bool)
 
-let clickables half_move trees color =
+let extend_set ~set l =
+  List.fold l ~init:set ~f:(fun set item -> Set.add set item)
+
+let clickables half_move board color (dice : Set.M(Int).t) =
   match half_move with
   | None ->
-    Choose_source (List.fold trees
+    Choose_source (Set.fold
+                     dice
                      ~init:(Set.empty (module Location))
-                     ~f:(fun set Game.(Tree (start, _, _)) -> Set.add set (start :> Location.t)))
+                     ~f:(fun set die ->
+                         extend_set ~set
+                           (Game.legal_uses board color die :> Location.t list)))
+
   | Some source ->
-    Choose_dest (source, List.fold trees
+    Choose_dest (source,
+                 Set.fold dice
                    ~init:(Map.empty (module Location))
-                   ~f:(fun map Game.(Tree (start, die, _)) ->
-                       if source_equal source start
-                       then Map.set map ~key:(Location.find_dest start die color :> Location.t) ~data:die
+                   ~f:(fun map die ->
+                       if Game.move_legal_individual board source die color
+                       then
+                         Map.set map
+                           ~key:(Location.find_dest source die color :> Location.t)
+                           ~data:die
                        else map))
 
 type model =
@@ -169,9 +180,12 @@ let view model =
       |> Game.get_dice_sequences
       |> fun sequences -> sequences_after_dice sequences consumed_dice
     in
-    let trees = Game.all_trees board turn sequences in
+    let dice_set =
+      List.concat sequences
+      |> Set.of_list (module Int)
+    in
     let clickables =
-      if my_turn then clickables model.selected_source trees turn
+      if my_turn then clickables model.selected_source board turn dice_set
       else Choose_source (Set.empty (module Backgammon.Location))
     in
     let row board side source pending =
