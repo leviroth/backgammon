@@ -1,12 +1,66 @@
-The goal of this project is to provide a networked multiplayer implementation of
-backgammon. Part of that goal means getting all the rules right; not just the
-basic movement rules but also all the weird corner cases. For example, the game
-will check that you use all available dice (where possible) and that you use the
-greater of two dice if forced to use only one, but it will (correctly) allow you
-to use less than the full value of a die when bearing off, even if you could
-avoid this by using your other dice differently.
+# Backgammon
 
-Currently, the game is playable, with a basic command-line interface that is not
-especially user-friendly but should correctly implement the game. In the longer
-run, I aim to complement the core game engine with a user interface built in
-Bucklescript, which will be a nice excuse to learn that tool.
+![backgammon](https://leviroth.github.io/backgammon/images/game.png)
+
+This is backgammon, implemented in OCaml. You have the option of playing via a
+multiplayer web client or else locally on a terminal.
+
+# Installation
+
+For the command-line interface, you will want at least Jane Street Base, stdio,
+and ppx_jane, installable via:
+
+```bash
+opam install base stdio ppx_jane
+```
+
+Running tests requires `core_kernel`.
+
+For the web interface, substantially more is needed:
+
+```bash
+opam install core async websocket-async js_of_ocaml
+# The following are either not yet published to opam, or not up to date with the
+# latest master branch bugfixes:
+opam pin add ocaml-vdom git://github.com/lexifi/ocaml-vdom.git
+opam pin add gen_js_api git://github.com/lexifi/gen_js_api.git
+```
+
+# Build and usage
+
+## Command-line interface
+
+![cli](https://leviroth.github.io/backgammon/images/cli_game.png)
+
+The command-line interface can be built and run with:
+
+```bash
+jbuilder build cli/main.exe
+_build/default/cli/main.exe
+```
+
+Moves are entered by choosing a starting location and the die that should be
+used from that position.
+
+## Web interface
+
+To build the web interface, simply:
+
+```bash
+jbuilder build @game
+```
+
+We make the game playable by running the server executable, and separately
+serving static files from the `client/` build directory:
+
+```bash
+_build/default/server/main.exe
+
+# In a separate session:
+cd _build/default/client
+python3 -m http.server
+```
+
+The game can then be accessed on whatever port is serving the web client. If
+you want to play over the Internet, you will need to make sure that your friends
+can access this port, as well as port 3000 which is used for WebSockets.
