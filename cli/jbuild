@@ -1,6 +1,6 @@
 (jbuild_version 1)
 
 (executables
- ((names        (cli))
+ ((names        (main))
   (flags (:standard -short-paths))
   (libraries (backgammon stdio base))))
