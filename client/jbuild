@@ -1,7 +1,7 @@
 (jbuild_version 1)
 
 (executables
- ((names        (main))
+ ((names        (main standalone))
   (flags (:standard -short-paths))
   (ocamlc_flags (-no-check-prims))
   (js_of_ocaml ((flags (+weak.js))))

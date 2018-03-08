@@ -5,3 +5,10 @@ let flip_color = function | White -> Black
 
 let char_of_t = function | White -> 'W'
                          | Black -> 'B'
+
+let string_of_t ?(caps=true) color =
+  match caps, color with
+  | true, White -> "White"
+  | true, Black -> "Black"
+  | false, White -> "white"
+  | false, Black -> "black"
