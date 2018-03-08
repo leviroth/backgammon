@@ -56,6 +56,27 @@ let view model =
 
 (* Update *)
 
+let handle_unusable_dice state =
+  let open Game in
+  let rec aux state acc =
+    match state with
+    | Won _ -> state, []
+    | Live g ->
+      if required_steps g = 0 then
+        let d1, d2 = g.dice in
+        let message =
+          Printf.sprintf "%s rolled the unusable dice (%d, %d)"
+            (Color.string_of_t g.turn)
+            d1 d2
+        in
+        (aux
+           (Result.ok_or_failwith @@ perform_sequence g [])
+           (message :: acc))
+      else state, List.rev acc
+  in
+  let state, messages = aux state [] in
+  state, messages
+
 let update m a =
   match a with
   | `Prepare_move (source, die) ->
@@ -71,7 +92,11 @@ let update m a =
                                selected_source = None;} in
          match result with
          | Error str -> {cleared with messages = str :: m.messages;}
-         | Ok game -> {cleared with game_state = game}
+         | Ok state ->
+           let state, new_messages = handle_unusable_dice state in
+           { cleared with game_state = state;
+                          messages = new_messages @ cleared.messages
+           }
        else {m with pending_move;
                     selected_source = None;})
   | `Select_source s ->
