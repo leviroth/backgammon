@@ -1,8 +1,25 @@
 (jbuild_version 1)
 
 (alias
- ((name    game)
-  (deps    (server/main.exe
-            client/main.bc.js
-            client/index.html
+ ((name cli)
+  (deps (cli/main.exe))))
+
+(alias
+ ((name web)
+  (deps (server/main.exe
+         client/main.bc.js
+         client/index.html
+         client/static/css/backgammon.css))))
+
+(alias
+ ((name    standalone)
+  (deps    (client/standalone.bc.js
+            client/standalone.html
             client/static/css/backgammon.css))))
+
+(alias
+ ((name all)
+  (deps ((alias cli)
+         (alias web)
+         (alias standalone)))))
+
