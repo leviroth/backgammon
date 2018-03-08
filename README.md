@@ -8,7 +8,7 @@ front-ends:
 - A networked web client - host a server and play with friends across the
   world.
 - A standalone web app - play locally via a static web page. [Try it via
-  GitHub Pages.]
+  GitHub Pages.](https://leviroth.github.io/backgammon/)
 - A terminal app.
 
 # Installation
