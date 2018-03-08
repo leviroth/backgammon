@@ -167,5 +167,5 @@ let represent_board
         div
           ~a:[class_multi ["row"; side_name]]
           (row side));
-    [text @@ Printf.sprintf "Dice: %d %d" (fst dice) (snd dice)];
+    [Dice.die (fst dice); Dice.die (snd dice)];
   ]
