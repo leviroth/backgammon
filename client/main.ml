@@ -83,9 +83,9 @@ let view model =
     in
     div @@ List.concat [
       [board_repr];
-      List.map model.messages ~f:(fun message -> div [text message]);
       [color_info];
-      if my_turn then [div [text "It's your turn!"]] else []
+      if my_turn then [div [text "It's your turn!"]] else [];
+      List.map model.messages ~f:(fun message -> div [text message]);
     ]
 
 (* Update *)

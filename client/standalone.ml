@@ -48,10 +48,10 @@ let view model =
     in
     div @@ List.concat [
       [board_repr];
-      List.map model.messages ~f:(fun message -> div [text message]);
       [div [text
             @@ Printf.sprintf "It is %s's turn."
-            @@ Color.string_of_t turn]]
+            @@ Color.string_of_t turn]];
+      List.map model.messages ~f:(fun message -> div [text message]);
     ]
 
 (* Update *)
