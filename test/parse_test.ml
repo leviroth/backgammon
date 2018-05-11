@@ -26,7 +26,7 @@ let legal_moves l =
   in
   (* Convert play representation from source * dest to die * source. *)
   let convert_plays dice plays =
-    let sorted_dice = List.sort ~cmp:Int.compare dice in
+    let sorted_dice = List.sort ~compare dice in
     let remaining_dice = ref sorted_dice in
     let raw_plays = List.map plays ~f:(fun (source, dest) -> (distance source dest, source)) in
     List.map raw_plays ~f:(fun (i, p) ->

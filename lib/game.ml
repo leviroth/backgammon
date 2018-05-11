@@ -179,8 +179,8 @@ let move_legal_sequence board color dice sequence =
   && (match steps with
       | [die] ->
         let greatest_in_dice =
-          List.filter_map dice ~f:(List.max_elt ~cmp:compare)
-          |> List.max_elt ~cmp:compare
+          List.filter_map dice ~f:(List.max_elt ~compare)
+          |> List.max_elt ~compare
           |> Option.value_exn
         in
         die = greatest_in_dice
