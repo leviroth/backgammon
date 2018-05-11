@@ -12,9 +12,9 @@ let send_on_protocol socket protocol_message =
     protocol_message
     |> [%sexp_of: Protocol.client_message]
     |> Core_kernel.Sexp.to_string
-    |> (fun s -> log_string @@ Printf.sprintf "sending %s" s; Js.string s)
   in
-  socket##send(s)
+  log_string @@ Printf.sprintf "sending %s" s;
+  Js_browser.WebSocket.send socket s
 
 let send_moves socket color secret moves =
   let move =
@@ -27,13 +27,14 @@ let sexpify = Core_kernel.Sexp.of_string
 (* Model *)
 
 type model =
-  { game_state : Game.t;
-    color : Color.t option;
-    secret : int option;
-    pending_move : (Location.source * int) list;
-    selected_source : Location.source option;
-    messages : string list;
-    socket : Js_of_ocaml.WebSockets.webSocket Js_of_ocaml.Js.t}
+  { game_state : Game.t
+  ; color : Color.t option
+  ; secret : int option
+  ; pending_move : (Location.source * int) list
+  ; selected_source : Location.source option
+  ; messages : string list
+  ; socket : Js_browser.WebSocket.t
+  }
 
 let init socket =
   { game_state = Game.(Live { board = starting_board;
@@ -138,28 +139,42 @@ let app socket =
     ()
 
 let run () =
-  let open Js_browser in
-  let hostname = Location.hostname @@ Window.location window in
-  let url_string = Printf.sprintf "ws://%s:3000/ws" hostname in
-  let url = Js_of_ocaml.Js.string url_string in
-  let socket = new%js Js_of_ocaml.WebSockets.webSocket url in
+  let hostname = Js_browser.(Location.hostname @@ Window.location window) in
+  let url = Printf.sprintf "ws://%s:3000/ws" hostname in
+  let socket = Js_browser.WebSocket.create url () in
   let app_instance = Vdom_blit.run @@ app socket in
   app_instance
   |> Vdom_blit.dom
-  |> Element.append_child (Document.body document);
-  socket##.onmessage := Dom.handler (fun message_event ->
-      let state_string = Js.to_string message_event##.data in
-      log_string state_string;
-      let result =
-        state_string
-        |> sexpify
-        |> [%of_sexp: Protocol.server_message list]
-      in
-      List.iter result ~f:(fun message ->
-          Vdom_blit.process app_instance (`Server_message message));
-      Js.bool false);
-  socket##.onopen := Dom.handler (fun _ ->
-      send_on_protocol socket Protocol.Request_state; Js.bool false)
+  |> Js_browser.Element.append_child (Js_browser.Document.body Js_browser.document);
+  Js_browser.WebSocket.add_event_listener
+    socket
+    "message"
+    (fun message_event ->
+       let open Js_browser.Event in
+       let state_string = Ojs.string_of_js @@ data message_event in
+       log_string state_string;
+       let result =
+         state_string
+         |> sexpify
+         |> [%of_sexp: Protocol.server_message list]
+       in
+       List.iter result ~f:(fun message -> Vdom_blit.process app_instance (`Server_message message)))
+    false;
+
+  Js_browser.WebSocket.add_event_listener
+    socket
+    "open"
+    (fun _ -> send_on_protocol socket Protocol.Request_state)
+    false;
+
+  Js_browser.WebSocket.add_event_listener
+    socket
+    "close"
+    (fun close_event ->
+       Js_browser.WebSocket.CloseEvent.code close_event
+       |> Int.to_string
+       |> log_string)
+    false
 
 let () =
   Js_browser.Window.set_onload Js_browser.window run

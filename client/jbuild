@@ -4,12 +4,11 @@
  ((names        (main standalone))
   (flags (:standard -short-paths))
   (ocamlc_flags (-no-check-prims))
-  (js_of_ocaml ((flags (+weak.js))))
+  (js_of_ocaml ())
   (libraries (backgammon
               base
               core_kernel
               gen_js_api
-              js_of_ocaml
               stdio
               ocaml-vdom))
-  (preprocess (pps (ppx_jane js_of_ocaml-ppx)))))
+  (preprocess (pps (ppx_jane)))))
