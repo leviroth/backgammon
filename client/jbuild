@@ -7,7 +7,7 @@
   (js_of_ocaml ())
   (libraries (backgammon
               base
-              core_kernel
+              parsexp
               gen_js_api
               stdio
               ocaml-vdom))

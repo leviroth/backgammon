@@ -7,8 +7,6 @@ let log_string s =
   |> Ojs.string_to_js
   |> Js_browser.Console.log Js_browser.console
 
-let sexpify = Core_kernel.Sexp.of_string
-
 (* Model *)
 
 type model =

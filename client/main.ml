@@ -11,7 +11,7 @@ let send_on_protocol socket protocol_message =
   let s =
     protocol_message
     |> [%sexp_of: Protocol.client_message]
-    |> Core_kernel.Sexp.to_string
+    |> Sexp.to_string
   in
   log_string @@ Printf.sprintf "sending %s" s;
   Js_browser.WebSocket.send socket s
@@ -22,7 +22,7 @@ let send_moves socket color secret moves =
   in
   send_on_protocol socket move
 
-let sexpify = Core_kernel.Sexp.of_string
+let sexpify = Parsexp.Single.parse_string_exn
 
 (* Model *)
 
