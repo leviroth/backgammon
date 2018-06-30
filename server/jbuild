@@ -4,5 +4,7 @@
  ((names        (main))
   (flags (:standard -short-paths))
   (libraries (backgammon
-              websocket-async))
+              async
+              async_js
+              core))
   (preprocess (pps (ppx_jane)))))

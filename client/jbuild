@@ -7,6 +7,7 @@
   (js_of_ocaml ())
   (libraries (backgammon
               base
+              async_js
               parsexp
               gen_js_api
               stdio

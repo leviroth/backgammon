@@ -1,15 +1,20 @@
 open Base
+open Bin_prot.Std
+
+module Pervasives = struct
+  let (+) = Caml.(+)
+end
 
 type live_game =
   {board : Board.t;
    dice : int * int;
    turn : Color.t}
-[@@deriving sexp]
+[@@deriving sexp, bin_io]
 
 type t =
   | Live of live_game
   | Won of Color.t
-[@@deriving sexp]
+[@@deriving sexp, bin_io]
 
 let is_live =
   function
@@ -68,10 +73,11 @@ let can_bear_off board color =
        | Color.White -> List.range ~stop:`inclusive 7 24
        | Color.Black -> List.range ~stop:`inclusive 1 18)
   in
-  List.for_all (Location.(`Bar color) :: distant_points)
-    ~f:(fun x -> match Board.get board x with
-        | Some (c, _) -> [%compare.equal: Color.t] c @@ Color.flip_color color
-        | None -> true)
+  Location.bar color :: distant_points
+  |> List.for_all ~f:(fun x ->
+      match Board.get board x with
+      | Some (c, _) -> [%compare.equal: Color.t] c @@ Color.flip_color color
+      | None -> true)
 
 let using_full_value point die color =
   let full_value_point =
@@ -97,18 +103,17 @@ let move_legal_individual board source die color =
   let dest = Location.find_dest source die color in
   let source_ready = has_piece_at board source color in
   let dest_ready = dest_open board dest color in
-  let bar = Location.(`Bar color) in
-  let open Location in
+  let bar = Location.bar color in
   match source with
   | `Bar _ -> source_ready && dest_ready
   | `Point n as point ->
     source_ready
     && dest_ready
     && Option.is_none @@ Board.get board bar
-    && ((dest :> Location.t) <> `Home color
+    && (Location.((dest :> Location.t) <> home color)
         || can_bear_off board color
            && (using_full_value point die color
-               || no_higher_points_filled board color (n :> int)))
+               || no_higher_points_filled board color n))
 
 (** Perform a single move from source to dest, returning the new board. Assumes
     that move was already checked for legality. *)
@@ -119,7 +124,7 @@ let single_move_unsafe board source dest =
   let piece_removed = remove_from board source in
   let piece_added = add_to piece_removed dest color in
   if hitting
-  then add_to piece_added (Location.(`Bar other)) other
+  then add_to piece_added (Location.bar other) other
   else piece_added
 
 let legal_uses board color die =
@@ -234,7 +239,7 @@ let perform_sequence game sequence =
     in
     let won =
       [%compare.equal: (Color.t * int) option]
-        (Board.get next_state.board Location.(`Home game.turn))
+        (Board.get next_state.board (Location.home game.turn))
         (Some (game.turn, 15)) in
     Ok (if won then Won game.turn else Live next_state)
   else Error "Illegal move"

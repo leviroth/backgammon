@@ -1,4 +1,4 @@
-type t = White | Black [@@deriving sexp, compare]
+type t = White | Black [@@deriving sexp, compare, bin_io]
 
 let flip_color = function | White -> Black
                           | Black -> White

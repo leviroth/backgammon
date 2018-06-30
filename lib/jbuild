@@ -3,6 +3,6 @@
 (library
  ((name backgammon)
   (flags (:standard -short-paths))
-  (libraries (base))
+  (libraries (core_kernel async_rpc_kernel bin_prot))
   (preprocess (pps (ppx_jane)))))
 

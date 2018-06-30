@@ -1,4 +1,4 @@
-type t [@@deriving sexp]
+type t [@@deriving bin_io, sexp]
 
 val empty : t
 

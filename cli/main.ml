@@ -73,7 +73,7 @@ let rec read_location color : Location.source =
   let line = Stdio.In_channel.input_line_exn Stdio.stdin in
   match line with
   | "b" -> Location.(`Bar color)
-  | s -> try (s |> Int.of_string |> Location.point)
+  | s -> try Location.(`Point (Int.of_string s))
     with | Failure _ | Invalid_argument _ -> (Stdio.Out_channel.output_string Stdio.stdout "Retry: ";
                                               Stdio.Out_channel.flush Stdio.stdout;
                                               read_location color)

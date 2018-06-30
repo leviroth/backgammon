@@ -1,15 +1,14 @@
-open Base
+open Core_kernel
 
 type t = [
   | `Bar of Color.t
-  | `Point of point_int
+  | `Point of int
   | `Home of Color.t ]
-[@@deriving sexp, compare]
-and point_int = private int
+[@@deriving variants, sexp, compare, bin_io]
 
-include Comparable.S with type t := t
+include Comparable.S_binable with type t := t
 
-type point = [`Point of point_int]
+type point = [`Point of int]
 
 type source = [
   | `Bar of Color.t
@@ -20,8 +19,6 @@ type dest = [
   | point
   | `Home of Color.t
 ]
-
-val point : int -> [> point]
 
 val valid_points : [> point] list
 
